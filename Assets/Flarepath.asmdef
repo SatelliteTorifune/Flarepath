@@ -1,0 +1,8 @@
+{
+	"name": "Flarepath",
+	"references": [
+		"UnityEngine.UI",
+		"Unity.TextMeshPro",
+		"Unity.Mathematics"
+	]
+}
