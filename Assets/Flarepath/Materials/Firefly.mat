@@ -24,7 +24,7 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _AirstreamTex:
-        m_Texture: {fileID: 2800000, guid: 4d68fc9d7be11164488e0170c8746aa9, type: 3}
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _BumpMap:
@@ -44,7 +44,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _DitherTex:
-        m_Texture: {fileID: 2800000, guid: 1eadc7f11686531439bc092f3ca5f9c0, type: 3}
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _EmissionMap:
@@ -74,9 +74,12 @@ Material:
     m_Ints: []
     m_Floats:
     - _BlueMultiplier: 1
+    - _BowshockForwardDistance: 0.3
+    - _BowshockRadiusScale: 1
     - _BumpScale: 1
     - _Cutoff: 0.5
     - _DetailNormalMapScale: 1
+    - _DisableBowshock: 0
     - _DstBlend: 0
     - _GlossMapScale: 1
     - _Glossiness: 0.5

@@ -18,7 +18,7 @@ public class ReEntryEffect : MonoBehaviour
 
     [Header("视觉调节")]
     [Range(0,1)] public float fxState = 0.8f;
-    [Range(0,2)] public float lengthMultiplier = 1f;
+    [Range(0,10)] public float lengthMultiplier = 1f;
     [Range(0,2)] public float trailAlphaMultiplier = 1f;
     [Range(0,5)] public float opacityMultiplier = 1f;
     [Range(0,1)] public float wrapOpacityMultiplier = 0.5f;

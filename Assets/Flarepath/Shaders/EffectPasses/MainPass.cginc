@@ -130,9 +130,11 @@ GS_INPUT eff_gs_vert ( VS_INPUT IN )
 // -----------------------------------------------------------
 // 为了兼容所有平台（尤其是 OpenGL ES），不再对
 // float3/float4 使用写索引，而是手写 x/y/z 分量。
-// maxvertexcount 设为 36，足够容纳 3 条三角形带 (主层+wrap层)。
+// maxvertexcount 限制：GS_DATA有25个标量组件，D3D11限制是1024
+// 1024 / 25 = 40.96，所以最多40个顶点
+// 每个三角形边最多生成：主层10个顶点 + Wrap层10个顶点 = 20个顶点
 //
-[maxvertexcount(36)]
+[maxvertexcount(40)]
 void eff_gs_geom ( triangle GS_INPUT vertex[3],
                   inout TriangleStream<GS_DATA> triStream )
 {
@@ -305,10 +307,25 @@ void eff_gs_geom ( triangle GS_INPUT vertex[3],
                 streakValue   = 1;
             }
 
-            // ---------- 计算 6 个关键顶点（底‑中‑顶） ----------
+            // ---------- 计算细分顶点（底‑中下‑中‑中上‑顶，共5个点） ----------
+            // 底部顶点
             float3 v_b0 = vertex[i].position - side;
             float3 v_b1 = vertex[j].position + side;
 
+            // 中下部顶点（25%位置）
+            float len_25 = curMiddleLen * 0.25;
+            float3 v_md0 = vertex[i].position - side * 0.7
+                         - vertex[i].velocityOS * len_25
+                         + vertex[i].normalOS *
+                           normalMultiplier * entrySpeed *
+                           middleNormalMultiplier * 0.5;
+            float3 v_md1 = vertex[j].position + side * 0.7
+                         - vertex[j].velocityOS * len_25
+                         + vertex[j].normalOS *
+                           normalMultiplier * entrySpeed *
+                           middleNormalMultiplier * 0.5;
+
+            // 中部顶点（50%位置）
             float3 v_m0 = vertex[i].position - middleSide
                          - vertex[i].velocityOS * curMiddleLen
                          + vertex[i].normalOS *
@@ -320,6 +337,20 @@ void eff_gs_geom ( triangle GS_INPUT vertex[3],
                            normalMultiplier * entrySpeed *
                            middleNormalMultiplier;
 
+            // 中上部顶点（75%位置）
+            float len_75 = curMiddleLen + (curEffectLen - curMiddleLen) * 0.5;
+            float3 v_mu0 = vertex[i].position - endSide * 0.7
+                         - vertex[i].velocityOS * len_75
+                         + vertex[i].normalOS *
+                           normalMultiplier * entrySpeed *
+                           middleNormalMultiplier * 1.5;
+            float3 v_mu1 = vertex[j].position + endSide * 0.7
+                         - vertex[j].velocityOS * len_75
+                         + vertex[j].normalOS *
+                           normalMultiplier * entrySpeed *
+                           middleNormalMultiplier * 1.5;
+
+            // 顶部顶点
             float3 v_t0 = vertex[i].position - endSide
                          - vertex[i].velocityOS * curEffectLen
                          + vertex[i].normalOS *
@@ -336,14 +367,30 @@ void eff_gs_geom ( triangle GS_INPUT vertex[3],
             float depthMask = Shadow(ndcMid, -0.003, 1);
             float discardSeg = (depthMask < 0.9) ? 2.0 : 0.0;
 
-            // ---------- 主层 (layer = 0) ----------
+            // ---------- 主层 (layer = 0) - 细分三角形带（5个点，4个三角形） ----------
+            // 计算中间颜色插值
+            float4 col_25 = lerp(col, middleCol, 0.5);
+            float4 col_75 = lerp(middleCol, endCol, 0.5);
+            float alpha_25 = alpha * 0.8;
+            float alpha_75 = alpha * 0.4;
+
+            // 底部三角形 (0%)
             triStream.Append(CreateVertex(v_b0, 0 - discardSeg,
                                          vertex[i].airstreamNDC,
-                                         0, 0, col, alpha));
+                                         0, 0.0, col, alpha));
             triStream.Append(CreateVertex(v_b1, 0 - discardSeg,
                                          vertex[j].airstreamNDC,
-                                         1, 0, col, alpha));
+                                         1, 0.0, col, alpha));
 
+            // 中下部三角形 (25%)
+            triStream.Append(CreateVertex(v_md0, 0 - discardSeg,
+                                         vertex[i].airstreamNDC,
+                                         0, 0.25, col_25, alpha_25));
+            triStream.Append(CreateVertex(v_md1, 0 - discardSeg,
+                                         vertex[j].airstreamNDC,
+                                         1, 0.25, col_25, alpha_25));
+
+            // 中部三角形 (50%)
             triStream.Append(CreateVertex(v_m0, 0 - discardSeg,
                                          vertex[i].airstreamNDC,
                                          0, 0.5, middleCol, alpha));
@@ -351,12 +398,21 @@ void eff_gs_geom ( triangle GS_INPUT vertex[3],
                                          vertex[j].airstreamNDC,
                                          1, 0.5, middleCol, alpha));
 
+            // 中上部三角形 (75%)
+            triStream.Append(CreateVertex(v_mu0, 0 - discardSeg,
+                                         vertex[i].airstreamNDC,
+                                         0, 0.75, col_75, alpha_75));
+            triStream.Append(CreateVertex(v_mu1, 0 - discardSeg,
+                                         vertex[j].airstreamNDC,
+                                         1, 0.75, col_75, alpha_75));
+
+            // 顶部三角形 (100%)
             triStream.Append(CreateVertex(v_t0, 0 - discardSeg,
                                          vertex[i].airstreamNDC,
-                                         0, 1, endCol, 0));
+                                         0, 1.0, endCol, 0));
             triStream.Append(CreateVertex(v_t1, 0 - discardSeg,
                                          vertex[j].airstreamNDC,
-                                         1, 1, endCol, 0));
+                                         1, 1.0, endCol, 0));
 
             triStream.RestartStrip();
 
@@ -404,10 +460,25 @@ void eff_gs_geom ( triangle GS_INPUT vertex[3],
                                  -0.05 * _LengthMultiplier *
                                  _ModelScale.y;
 
-            // 重新计算 Wrap 层的 6 个顶点
+            // 重新计算 Wrap 层的细分顶点（5个点）
+            // 底部顶点
             v_b0 = vertex[i].position - side + layerOffset;
             v_b1 = vertex[j].position + side + layerOffset;
 
+            // 中下部顶点（25%位置）
+            float wrap_len_25 = curMiddleLen * 0.25;
+            float3 v_wrap_md0 = vertex[i].position - side * 0.7 + layerOffset
+                               - vertex[i].velocityOS * wrap_len_25
+                               + vertex[i].normalOS *
+                                 normalMulWrap * entrySpeed *
+                                 middleNormalMulWrap * 0.5;
+            float3 v_wrap_md1 = vertex[j].position + side * 0.7 + layerOffset
+                               - vertex[j].velocityOS * wrap_len_25
+                               + vertex[j].normalOS *
+                                 normalMulWrap * entrySpeed *
+                                 middleNormalMulWrap * 0.5;
+
+            // 中部顶点（50%位置）
             v_m0 = vertex[i].position - middleSide + layerOffset
                    - vertex[i].velocityOS * curMiddleLen
                    + vertex[i].normalOS *
@@ -419,6 +490,20 @@ void eff_gs_geom ( triangle GS_INPUT vertex[3],
                      normalMulWrap * entrySpeed *
                      middleNormalMulWrap;
 
+            // 中上部顶点（75%位置）
+            float wrap_len_75 = curMiddleLen + (curEffectLen - curMiddleLen) * 0.5;
+            float3 v_wrap_mu0 = vertex[i].position - endSide * 0.7 + layerOffset
+                               - vertex[i].velocityOS * wrap_len_75
+                               + vertex[i].normalOS *
+                                 normalMulWrap * entrySpeed *
+                                 middleNormalMulWrap * 1.5;
+            float3 v_wrap_mu1 = vertex[j].position + endSide * 0.7 + layerOffset
+                               - vertex[j].velocityOS * wrap_len_75
+                               + vertex[j].normalOS *
+                                 normalMulWrap * entrySpeed *
+                                 middleNormalMulWrap * 1.5;
+
+            // 顶部顶点
             v_t0 = vertex[i].position - endSide + layerOffset
                    - vertex[i].velocityOS * curEffectLen
                    + vertex[i].normalOS *
@@ -430,14 +515,30 @@ void eff_gs_geom ( triangle GS_INPUT vertex[3],
 
             float discardWrap = (_FxState < 0.6) ? 2.0 : 0.0;
 
-            // Wrap 层输出
+            // Wrap 层输出 - 细分三角形带（5个点，4个三角形）
+            // 计算中间颜色插值
+            float4 wrapCol_25 = lerp(wrapCol, wrapMidCol, 0.5);
+            float4 wrapCol_75 = lerp(wrapMidCol, wrapEndCol, 0.5);
+            float wrapAlpha_25 = alpha * 0.8;
+            float wrapAlpha_75 = alpha * 0.4;
+
+            // 底部三角形 (0%)
             triStream.Append(CreateVertex(v_b0, 1 - discardWrap,
                                          vertex[i].airstreamNDC,
-                                         0, 0, wrapCol, alpha));
+                                         0, 0.0, wrapCol, alpha));
             triStream.Append(CreateVertex(v_b1, 1 - discardWrap,
                                          vertex[j].airstreamNDC,
-                                         1, 0, wrapCol, alpha));
+                                         1, 0.0, wrapCol, alpha));
 
+            // 中下部三角形 (25%)
+            triStream.Append(CreateVertex(v_wrap_md0, 1 - discardWrap,
+                                         vertex[i].airstreamNDC,
+                                         0, 0.25, wrapCol_25, wrapAlpha_25));
+            triStream.Append(CreateVertex(v_wrap_md1, 1 - discardWrap,
+                                         vertex[j].airstreamNDC,
+                                         1, 0.25, wrapCol_25, wrapAlpha_25));
+
+            // 中部三角形 (50%)
             triStream.Append(CreateVertex(v_m0, 1 - discardWrap,
                                          vertex[i].airstreamNDC,
                                          0, 0.5, wrapMidCol, alpha));
@@ -445,12 +546,21 @@ void eff_gs_geom ( triangle GS_INPUT vertex[3],
                                          vertex[j].airstreamNDC,
                                          1, 0.5, wrapMidCol, alpha));
 
+            // 中上部三角形 (75%)
+            triStream.Append(CreateVertex(v_wrap_mu0, 1 - discardWrap,
+                                         vertex[i].airstreamNDC,
+                                         0, 0.75, wrapCol_75, wrapAlpha_75));
+            triStream.Append(CreateVertex(v_wrap_mu1, 1 - discardWrap,
+                                         vertex[j].airstreamNDC,
+                                         1, 0.75, wrapCol_75, wrapAlpha_75));
+
+            // 顶部三角形 (100%)
             triStream.Append(CreateVertex(v_t0, 1 - discardWrap,
                                          vertex[i].airstreamNDC,
-                                         0, 1, wrapEndCol, 0));
+                                         0, 1.0, wrapEndCol, 0));
             triStream.Append(CreateVertex(v_t1, 1 - discardWrap,
                                          vertex[j].airstreamNDC,
-                                         1, 1, wrapEndCol, 0));
+                                         1, 1.0, wrapEndCol, 0));
 
             triStream.RestartStrip();
         } // if (velDot && occlusion)

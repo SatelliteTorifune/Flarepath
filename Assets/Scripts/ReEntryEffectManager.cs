@@ -16,5 +16,6 @@ public class ReEntryEffectManager:MonoBehaviour
             this.gameObject.transform.position=part.GameObject.transform.position;
             this.gameObject.transform.rotation=part.GameObject.transform.rotation;
             Effect.velocityWorld = part.CraftScript.FlightData.SurfaceVelocity.ToVector3();
+            Effect.lengthMultiplier = 5;
         }
 }
