@@ -5,13 +5,16 @@ using UnityEngine.Rendering;
 /// 将速度、模型尺寸、Airstream阴影等信息传递给 AtmosphericReentry Shader。
 /// </summary>
 [RequireComponent(typeof(Renderer))]
-public class ReentryEffect : MonoBehaviour
+public class ReEntryEffect : MonoBehaviour
 {
     // ----- 可在 Inspector 调整的属性 -----
     [Header("动力学参数")]
     public float entryStrength = 2000f;   // 由外部系统填入（如影响速度等）
-    public Vector3 velocityWorld = Vector3.zero; // 世界空间速度 (m/s)
+    public Vector3 velocityWorld =Vector3.zero; // 世界空间速度 (m/s)
+    [Tooltip("攻角（度）。如果启用自动计算，将根据速度方向和物体朝向自动计算")]
     public float angleOfAttack = 0f;     // 角度攻击度 (度)
+    [Tooltip("是否自动计算攻角（基于速度方向和物体朝向）")]
+    public bool autoCalculateAngleOfAttack = true;
 
     [Header("视觉调节")]
     [Range(0,1)] public float fxState = 0.8f;
@@ -26,6 +29,18 @@ public class ReentryEffect : MonoBehaviour
     [Header("随机性")]
     [Tooltip("x – streak 随机性  y – wrap 随机性")]
     public Vector2 randomnessFactor = new Vector2(0.5f, 0.5f);
+
+    [Header("Bowshock (前向蓝色等离子层)")]
+    [Tooltip("是否启用Bowshock效果")]
+    public bool enableBowshock = true;
+    [Tooltip("Bowshock强度 (0-1)")]
+    [Range(0, 1)] public float bowshockIntensity = 0.8f;
+    [Tooltip("Bowshock颜色 (蓝色高温等离子体)")]
+    public Color shockwaveColor = new Color(0.2f, 0.6f, 1.0f, 1.0f);
+    [Tooltip("Bowshock向前延伸距离")]
+    [Range(0, 2)] public float bowshockForwardDistance = 0.3f;
+    [Tooltip("Bowshock半径缩放")]
+    [Range(0, 3)] public float bowshockRadiusScale = 1.0f;
 
     // ---------- 内部引用 ----------
     private Renderer _rend;
@@ -77,7 +92,20 @@ public class ReentryEffect : MonoBehaviour
         // 速度会动态变化，你可以把它绑定到 Rigidbody.velocity
         // 这里演示一个简单的示例：随时间绕 Y 轴转圈
         // velocityWorld = (transform.forward * 30f);
-        // 也可以在外部脚本直接修改 ReentryEffect.velocityWorld
+        // 也可以在外部脚本直接修改 ReEntryEffect.velocityWorld
+
+        // 自动计算攻角（速度方向与物体前方向的夹角）
+        float calculatedAOA = angleOfAttack;
+        if (autoCalculateAngleOfAttack && velocityWorld.magnitude > 0.1f)
+        {
+            Vector3 forward = transform.forward;
+            Vector3 velocityDir = velocityWorld.normalized;
+            
+            // 计算速度方向与物体前方向的夹角（度）
+            float dot = Vector3.Dot(forward, velocityDir);
+            dot = Mathf.Clamp(dot, -1f, 1f);
+            calculatedAOA = Mathf.Acos(dot) * Mathf.Rad2Deg;
+        }
 
         // 1) 传递矩阵（摄像机的 VP 矩阵，用于 Shadow 采样）
         _airstreamCam.transform.position = transform.position - velocityWorld.normalized * 0.5f;
@@ -90,7 +118,7 @@ public class ReentryEffect : MonoBehaviour
         _mat.SetFloat("_EntryStrength", entryStrength);
         _mat.SetVector("_Velocity", velocityWorld);
         _mat.SetFloat("_FxState", fxState);
-        _mat.SetFloat("_AngleOfAttack", angleOfAttack);
+        _mat.SetFloat("_AngleOfAttack", calculatedAOA);
         _mat.SetFloat("_LengthMultiplier", lengthMultiplier);
         _mat.SetFloat("_TrailAlphaMultiplier", trailAlphaMultiplier);
         _mat.SetFloat("_OpacityMultiplier", opacityMultiplier);
@@ -109,5 +137,11 @@ public class ReentryEffect : MonoBehaviour
         _mat.SetColor("_StreakColor", new Color(1, 0.6f, 0.2f, 1));
         _mat.SetColor("_LayerColor", new Color(0.4f, 0.6f, 1, 1));
         _mat.SetColor("_LayerStreakColor", new Color(1, 1, 1, 1));
+
+        // 4) Bowshock 参数
+        _mat.SetInt("_DisableBowshock", enableBowshock ? 0 : 1);
+        _mat.SetColor("_ShockwaveColor", shockwaveColor * bowshockIntensity);
+        _mat.SetFloat("_BowshockForwardDistance", bowshockForwardDistance);
+        _mat.SetFloat("_BowshockRadiusScale", bowshockRadiusScale);
     }
 }

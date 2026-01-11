@@ -253,8 +253,13 @@ void eff_gs_geom ( triangle GS_INPUT vertex[3],
             endCol    = lerp(1, endCol,    interp);
 
             // ---------- 攻角对亮度的影响 ----------
-            float aoa = pow(saturate(_AngleOfAttack / 20),4);
-            alpha *= saturate(aoa + t + 0.5);
+            // 攻角越大，效果越明显（0度时较弱，大角度时更强）
+            // 将角度归一化到0-1范围，20度作为参考值
+            float aoaNormalized = saturate(_AngleOfAttack / 20.0);
+            // 使用更平滑的曲线，让效果更明显
+            float aoa = pow(aoaNormalized, 2.0); // 平方曲线，让效果更平滑
+            // 攻角影响alpha：角度越大，alpha越强（最小0.5倍，最大1.5倍）
+            alpha *= lerp(0.5, 1.5, aoa) * saturate(t + 0.5);
 
             // ---------- 缩放至模型空间 ----------
             side       *= _ModelScale.x;

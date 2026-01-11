@@ -14,12 +14,41 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _assemblies:
   - Flarepath.dll
-  _author: 
+  _author: SatelliteTorifune
   _description: 
   _loadPriority: 1000
   _name: Flarepath
-  _otherAssets: []
-  _prefabs: []
+  _otherAssets:
+  - {fileID: 10900000, guid: 2dd631f15dc064e41a45e6ee1eb7af02, type: 3}
+  - {fileID: 2100000, guid: 472330695b3534a4bafc31702e9c5b30, type: 2}
+  - {fileID: 2100000, guid: 19326cf9b81422b409b9f5dae69ad6be, type: 2}
+  - {fileID: 2800000, guid: 4d68fc9d7be11164488e0170c8746aa9, type: 3}
+  - {fileID: 2800000, guid: 1eadc7f11686531439bc092f3ca5f9c0, type: 3}
+  - {fileID: 10900000, guid: 68ed27a65456a3a408a6fc2919c55677, type: 3}
+  - {fileID: 102900000, guid: 748035ab5cd762047b9278290cf424b0, type: 3}
+  - {fileID: 2100000, guid: d80589f836405764bad736b4f82a3e98, type: 2}
+  - {fileID: 4800000, guid: 795c417134cccc3469a13c5796a398e0, type: 3}
+  - {fileID: 4800000, guid: 552b890edaeaa1b4f8a9a0fea3d0f6e5, type: 3}
+  - {fileID: 102900000, guid: 13ce81b3652f8ed469bc803c87e76347, type: 3}
+  - {fileID: 10900000, guid: 5f16ffb96a55d334c8e15aedc8bd8fb2, type: 3}
+  - {fileID: 4800000, guid: ae8e6d092b32be248aa3d4f41613e2f6, type: 3}
+  - {fileID: 2800000, guid: 9db96b6821e67ca4f8ad3906c83ed08b, type: 3}
+  - {fileID: 10900000, guid: 5cf2b0a1dde03d5409f2b7173e01fae2, type: 3}
+  - {fileID: 102900000, guid: dfb44d2d3c349c3419aa0876be6af213, type: 3}
+  - {fileID: 2800000, guid: ac3a792b81a2ca54b8de1b9ad9fe8450, type: 3}
+  - {fileID: 102900000, guid: b83902fcbe903c74baaff969f5e2ae87, type: 3}
+  - {fileID: 102900000, guid: 1e17ec8c0075b2a45919dcdb2120f4e4, type: 3}
+  - {fileID: 2100000, guid: 102fd3a11f5815a4fa053d7fdd15a2d8, type: 2}
+  - {fileID: 2800000, guid: 59250567bb357e14e80b4190df9b5a09, type: 3}
+  - {fileID: 2100000, guid: a0d3a2869020829428aa0c14e976eee9, type: 2}
+  - {fileID: 2800000, guid: 704ab7fdf3814754d9d26ec747d1a767, type: 3}
+  - {fileID: 102900000, guid: 2d61f4ece92be3a409089aada6c0c8b0, type: 3}
+  _prefabs:
+  - {fileID: 326100850451001822, guid: 5075119586a50a548b17153827fbbce2, type: 3}
+  - {fileID: 5729371531869170713, guid: 01771d85b9601594794efbd947ed887c, type: 3}
+  - {fileID: 8629731326935664989, guid: dd8535f31dd2aab47b6b38d277304c64, type: 3}
+  - {fileID: 6456826674957717894, guid: d9e59422a9fc0284389d8b868bf964a9, type: 3}
+  - {fileID: 3953971736532986869, guid: 42cfbfd9d4f57d849874ef68b3336539, type: 3}
   _steamDescription: 
   _steamLanguage: English
   _steamPreviewPath: 

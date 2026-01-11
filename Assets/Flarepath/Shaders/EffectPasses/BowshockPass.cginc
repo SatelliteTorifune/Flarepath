@@ -1,6 +1,8 @@
 float4 _ShockwaveColor;
 float _LengthMultiplier;
 int _DisableBowshock;
+float _BowshockForwardDistance;
+float _BowshockRadiusScale;
 
 struct VS_INPUT
 {
@@ -64,7 +66,8 @@ GS_INPUT bs_gs_vert(VS_INPUT IN)
 }
 
 // ---------------------------------------------------
-// Geometry Shader（已极简化，只绘制一个“冲击波圆盘”）
+// Geometry Shader - 向前复制几何体产生蓝色等离子层
+// 根据论文：在物体前方复制几何体，只有与速度向量角度非常接近的面才产生
 // ---------------------------------------------------
 [maxvertexcount(24)]
 void bs_gs_geom(triangle GS_INPUT vertex[3], inout TriangleStream<GS_DATA> triStream)
@@ -72,39 +75,100 @@ void bs_gs_geom(triangle GS_INPUT vertex[3], inout TriangleStream<GS_DATA> triSt
     // 仅在强度足够且未手动禁用时绘制
     if (_EntryStrength < 0.01 || _DisableBowshock > 0) return;
 
-    // 取第一个顶点做基准（这里直接用 vertex[0]，不做循环，因为激波只在正面出现一次）
-    float occl = Shadow(vertex[0].airstreamNDC, -0.003, 1);
-    float dotV = dot(vertex[0].normal, _Velocity);
-    if (occl < 0.9 || dotV < 0.2) return; // 没有正面或被遮挡则退出
+    // 计算三个顶点的遮挡和法线-速度点积
+    float3 occlusion = float3(
+        Shadow(vertex[0].airstreamNDC, -0.003, 1),
+        Shadow(vertex[1].airstreamNDC, -0.003, 1),
+        Shadow(vertex[2].airstreamNDC, -0.003, 1)
+    );
 
-    // ----------------------------------------------------------------
-    // 生成一个小圆环（6 条三角形）模拟冲击波 “bow‑shock”
-    // ----------------------------------------------------------------
-    const int SEG = 6;
-    float radius = 0.5 * _LengthMultiplier; // 基础半径，可调
-    float3 center = vertex[0].position;     // 冲击波中心位于模型正前方
+    float3 normalDots = float3(
+        dot(vertex[0].normal, normalize(_Velocity)),
+        dot(vertex[1].normal, normalize(_Velocity)),
+        dot(vertex[2].normal, normalize(_Velocity))
+    );
 
-    // 方向向量（向前的速度方向）
-    float3 forward = normalize(_Velocity);
+    // 计算平均遮挡和点积（用于决定是否生成bowshock）
+    float avgOccl = (occlusion.x + occlusion.y + occlusion.z) / 3.0;
+    float avgDot = (normalDots.x + normalDots.y + normalDots.z) / 3.0;
 
-    // 生成环形
-    for (int i = 0; i < SEG; ++i)
-    {
-        float ang0 = (i   / (float)SEG) * 6.2831853;
-        float ang1 = ((i+1) / (float)SEG) * 6.2831853;
+    // 只有正面且未被遮挡的面才生成bowshock
+    // 点积需要接近1（法线与速度方向一致），论文中提到"角度非常接近"
+    if (avgOccl < 0.9 || avgDot < 0.7) return;
 
-        float3 p0 = center + forward * 0.2
-                 + float3(cos(ang0), sin(ang0), 0) * radius;
-        float3 p1 = center + forward * 0.2
-                 + float3(cos(ang1), sin(ang1), 0) * radius;
-        float3 p2 = center; // 中心点
+    // 计算进入速度，用于控制强度
+    float entrySpeed = saturate(_EntryStrength / 4000.0);
+    
+    // 根据点积计算强度（越接近1越强）
+    float intensity = pow(saturate(avgDot), 3.0) * entrySpeed;
+    
+    // 计算向前延伸的距离（基于速度和强度）
+    // 使用对象空间的速度方向（已经在顶点着色器中归一化）
+    float3 forwardDir = normalize(vertex[0].velocityOS);
+    float forwardDist = _BowshockForwardDistance * intensity * _LengthMultiplier;
 
-        // 三角形 0‑1‑2
-        triStream.Append(CreateVertex_Bow(p0, _ShockwaveColor, 1));
-        triStream.Append(CreateVertex_Bow(p1, _ShockwaveColor, 1));
-        triStream.Append(CreateVertex_Bow(p2, _ShockwaveColor, 0));
-        triStream.RestartStrip();
-    }
+    // 计算每个顶点向前复制的位置
+    float3 v0_forward = vertex[0].position.xyz + forwardDir * forwardDist;
+    float3 v1_forward = vertex[1].position.xyz + forwardDir * forwardDist;
+    float3 v2_forward = vertex[2].position.xyz + forwardDir * forwardDist;
+
+    // 根据点积调整颜色强度（正面越正，蓝色越强）
+    float3 colorIntensity = float3(
+        pow(saturate(normalDots.x), 4.0),
+        pow(saturate(normalDots.y), 4.0),
+        pow(saturate(normalDots.z), 4.0)
+    );
+
+    // 计算颜色（蓝色高温等离子体，强度随角度变化）
+    float4 col0 = _ShockwaveColor * colorIntensity.x * intensity;
+    float4 col1 = _ShockwaveColor * colorIntensity.y * intensity;
+    float4 col2 = _ShockwaveColor * colorIntensity.z * intensity;
+
+    // 创建两个三角形：原始三角形和向前复制的三角形
+    // 第一个三角形（原始位置，alpha较低）
+    triStream.Append(CreateVertex_Bow(vertex[0].position.xyz, col0 * 0.3, col0.a * 0.1));
+    triStream.Append(CreateVertex_Bow(vertex[1].position.xyz, col1 * 0.3, col1.a * 0.1));
+    triStream.Append(CreateVertex_Bow(vertex[2].position.xyz, col2 * 0.3, col2.a * 0.1));
+    triStream.RestartStrip();
+
+    // 第二个三角形（向前复制的位置，alpha较高）
+    triStream.Append(CreateVertex_Bow(v0_forward, col0, col0.a));
+    triStream.Append(CreateVertex_Bow(v1_forward, col1, col1.a));
+    triStream.Append(CreateVertex_Bow(v2_forward, col2, col2.a));
+    triStream.RestartStrip();
+
+    // 创建连接两个三角形的侧面（形成厚度）
+    // 边 0-1
+    triStream.Append(CreateVertex_Bow(vertex[0].position.xyz, col0 * 0.5, col0.a * 0.3));
+    triStream.Append(CreateVertex_Bow(vertex[1].position.xyz, col1 * 0.5, col1.a * 0.3));
+    triStream.Append(CreateVertex_Bow(v0_forward, col0, col0.a));
+    triStream.RestartStrip();
+
+    triStream.Append(CreateVertex_Bow(v0_forward, col0, col0.a));
+    triStream.Append(CreateVertex_Bow(v1_forward, col1, col1.a));
+    triStream.Append(CreateVertex_Bow(vertex[1].position.xyz, col1 * 0.5, col1.a * 0.3));
+    triStream.RestartStrip();
+
+    // 边 1-2
+    triStream.Append(CreateVertex_Bow(vertex[1].position.xyz, col1 * 0.5, col1.a * 0.3));
+    triStream.Append(CreateVertex_Bow(vertex[2].position.xyz, col2 * 0.5, col2.a * 0.3));
+    triStream.Append(CreateVertex_Bow(v1_forward, col1, col1.a));
+    triStream.RestartStrip();
+
+    triStream.Append(CreateVertex_Bow(v1_forward, col1, col1.a));
+    triStream.Append(CreateVertex_Bow(v2_forward, col2, col2.a));
+    triStream.Append(CreateVertex_Bow(vertex[2].position.xyz, col2 * 0.5, col2.a * 0.3));
+    triStream.RestartStrip();
+
+    // 边 2-0
+    triStream.Append(CreateVertex_Bow(vertex[2].position.xyz, col2 * 0.5, col2.a * 0.3));
+    triStream.Append(CreateVertex_Bow(vertex[0].position.xyz, col0 * 0.5, col0.a * 0.3));
+    triStream.Append(CreateVertex_Bow(v2_forward, col2, col2.a));
+    triStream.RestartStrip();
+
+    triStream.Append(CreateVertex_Bow(v2_forward, col2, col2.a));
+    triStream.Append(CreateVertex_Bow(v0_forward, col0, col0.a));
+    triStream.Append(CreateVertex_Bow(vertex[0].position.xyz, col0 * 0.5, col0.a * 0.3));
 }
 
 // ---------------------------------------------------
