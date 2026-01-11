@@ -1,13 +1,24 @@
-// MainPass.cginc (修复版)
+// ================================================================
+// EffectPasses/MainPass.cginc
+// ================================================================
+// Geometry‑Shader based plasma‑trail effect (Effects Pass)
+// ------------------------------------------------
+// 该文件被 "Firefly/Firefly" Shader 通过
+//    #include "EffectPasses/MainPass.cginc"
+// 引入。所有依赖函数（Shadow、Noise、Fresnel、Transform* 等）都在
+// CommonFunctions.cginc 中实现。只需要保证 CommonFunctions 已
+// 正确包含即可。
+// ------------------------------------------------
 
-float _FxState;
-float _AngleOfAttack;
-int _Hdr;
-int _UnityEditor = 0;
-int _VertexSamples = 3;
+#pragma target 5.0
+#pragma require geometry
 
-float _LengthMultiplier;
-
+//-----------------------------------------------------------
+// 参数（在主 Shader 的 Properties 中声明）
+//-----------------------------------------------------------
+float _FxState;                     // 全局强度 (0…1)
+float _AngleOfAttack;               // 攻角（度）
+int   _Hdr;                         // 是否 HDR（0/1）
 float _TrailAlphaMultiplier;
 float _BlueMultiplier;
 float _SideMultiplier;
@@ -16,6 +27,7 @@ float _WrapOpacityMultiplier;
 float _WrapFresnelModifier;
 float _StreakProbability;
 float _StreakThreshold;
+float _LengthMultiplier;            // 长度乘数
 
 float4 _SecondaryColor;
 float4 _PrimaryColor;
@@ -24,314 +36,489 @@ float4 _StreakColor;
 float4 _LayerColor;
 float4 _LayerStreakColor;
 
-float2 _RandomnessFactor;
+float2 _RandomnessFactor;          // x = streak 随机性, y = wrap 随机性
 
 struct VS_INPUT
 {
     float4 position : POSITION;
-    float3 normal : NORMAL;
-    float2 uv : TEXCOORD0;
+    float3 normal   : NORMAL;
+    float2 uv       : TEXCOORD0;
 };
 
 struct GS_INPUT
 {
     float4 position : POSITION;
-    float3 normal : NORMAL;
-    float2 uv : TEXCOORD0;
-    float3 positionWS : TEXCOORD3;
-    float4 airstreamNDC : TEXCOORD4;
-    float3 velocityOS : TEXCOORD5;
-    float3 normalOS : TEXCOORD6;
-    float3 viewDir : TEXCOORD7;
-}; 
+    float3 normal   : NORMAL;
+    float2 uv       : TEXCOORD0;
+
+    float3 positionWS   : TEXCOORD3;   // 世界空间位置（用于光照 / airstream）
+    float4 airstreamNDC : TEXCOORD4; // airstream NDC (xy = screen, z = depth)
+    float3 velocityOS  : TEXCOORD5; // 速度（对象空间）
+    float3 normalOS    : TEXCOORD6; // 法线（对象空间）
+    float3 viewDir     : TEXCOORD7; // 观察方向（世界空间）
+};
 
 struct GS_DATA
 {
-    float4 position : SV_POSITION;
-    half4 color : COLOR;
-    float3 positionWS : TEXCOORD1;
-    float3 positionOS : TEXCOORD2;
-    float4 screenPos : TEXCOORD4;
-    float2 trailPos : TEXCOORD6;
-    float layer : TEXCOORD7;
-    float4 airstreamNDC : TEXCOORD8;
+    float4 position   : SV_POSITION; // Clip‑space
+    half4  color      : COLOR;       // 颜色 + alpha
+    float3 positionWS : TEXCOORD1;   // 世界空间坐标（调试/后处理可用）
+    float3 positionOS : TEXCOORD2;   // 对象空间坐标（噪声等）
+    float4 screenPos  : TEXCOORD4;   // 同 position，用于 Dither
+    float2 trailPos   : TEXCOORD6;   // (0,0) = 尾, (1,1) = 头
+    float  layer      : TEXCOORD7;   // 0 = 主层, 1 = Wrap 层 (负值 = 剔除)
+    float4 airstreamNDC : TEXCOORD8; // 用于深度遮挡
 };
 
-GS_DATA CreateVertex(float3 pos, float layer, float4 airstreamNDC, float trailPosX, float trailPosY, half4 color, half a) 
+//-----------------------------------------------------------
+// 辅助：创建一个输出顶点
+//-----------------------------------------------------------
+GS_DATA CreateVertex ( float3 pos,
+                      float  layer,
+                      float4 airstreamNDC,
+                      float  trailX,
+                      float  trailY,
+                      half4  col,
+                      half   a )
 {
     GS_DATA o;
-    o.position = UnityObjectToClipPos(pos);
-    o.color = color;
-    o.color.a = a;
+    o.position   = UnityObjectToClipPos(pos);
+    o.color      = col;
+    o.color.a    = a;
     o.positionWS = TransformObjectToWorld(pos);
     o.positionOS = pos;
-    o.screenPos = o.position;
-    o.trailPos = float2(trailPosX, trailPosY);
-    o.layer = layer;
+    o.screenPos  = o.position;
+    o.trailPos   = float2(trailX, trailY);
+    o.layer      = layer;
     o.airstreamNDC = airstreamNDC;
     return o;
 }
 
-GS_INPUT eff_gs_vert(VS_INPUT IN)
+//-----------------------------------------------------------
+// 顶点着色器（Vertex → Geometry）
+//-----------------------------------------------------------
+GS_INPUT eff_gs_vert ( VS_INPUT IN )
 {
     GS_INPUT OUT;
-    OUT.normal = UnityObjectToWorldNormal(IN.normal);
+
+    // 世界/对象空间法线
+    OUT.normal   = UnityObjectToWorldNormal(IN.normal);
     OUT.normalOS = normalize(IN.normal);
-    OUT.position = IN.position * float4(_EnvelopeScaleFactor, 1);
-    OUT.uv = IN.uv;
+
+    // 缩放（可在材质里控制）
+    OUT.position = IN.position * float4(_EnvelopeScaleFactor,1);
+    OUT.uv       = IN.uv;
+
+    // 世界空间位置（后面需要计算 airstream NDC）
     OUT.positionWS = TransformObjectToWorld(OUT.position.xyz);
-    float4 airstreamPosition = mul(_AirstreamVP, float4(OUT.positionWS, 1));
-    OUT.airstreamNDC = float4(airstreamPosition.xyz / airstreamPosition.w, airstreamPosition.w);
+
+    // airstream NDC（用于 Shadow()）
+    float4 airstreamPos = mul(_AirstreamVP, float4(OUT.positionWS,1));
+    OUT.airstreamNDC = float4(airstreamPos.xyz / airstreamPos.w,
+                             airstreamPos.w);
+
+    // 对象空间速度（全局速度向量）
     OUT.velocityOS = normalize(UnityWorldToObjectDir(_Velocity));
+
+    // 观察方向（WorldSpaceViewDir 用 UnityCG 提供）
     OUT.viewDir = WorldSpaceViewDir(IN.position);
     return OUT;
 }
 
+//-----------------------------------------------------------
+// Geometry Shader
+// -----------------------------------------------------------
+// 为了兼容所有平台（尤其是 OpenGL ES），不再对
+// float3/float4 使用写索引，而是手写 x/y/z 分量。
+// maxvertexcount 设为 36，足够容纳 3 条三角形带 (主层+wrap层)。
+//
 [maxvertexcount(36)]
-void eff_gs_geom(triangle GS_INPUT vertex[3], inout TriangleStream<GS_DATA> triStream)
+void eff_gs_geom ( triangle GS_INPUT vertex[3],
+                  inout TriangleStream<GS_DATA> triStream )
 {
-    /*
+    // ---------- Early‑out ----------
     if (_EntryStrength < 50) return;
-    uint i = 0;
 
-    float entrySpeed = _EntryStrength / 4000 - 0.08 * _FxState;
+    // ---------- 基础值 ----------
+    float entrySpeed = _EntryStrength / 4000.0 - 0.08 * _FxState;
+
+    // ---------- 遮挡（Shadow） ----------
     float3 occlusion = float3(
-        Shadow(vertex[0].airstreamNDC, -0.003, 1),
-        Shadow(vertex[1].airstreamNDC, -0.003, 1),
-        Shadow(vertex[2].airstreamNDC, -0.003, 1)
+        Shadow(vertex[0].airstreamNDC.xyz, -0.003, 1),
+        Shadow(vertex[1].airstreamNDC.xyz, -0.003, 1),
+        Shadow(vertex[2].airstreamNDC.xyz, -0.003, 1)
     );
-                
-    float3 velDots;
-    velDots.x = dot(-vertex[0].normal, _Velocity);
-    velDots.y = dot(-vertex[1].normal, _Velocity);
-    velDots.z = dot(-vertex[2].normal, _Velocity);
 
+    // ---------- 法线·速度 点积 ----------
+    float3 velDots = float3(
+        dot(-vertex[0].normal, _Velocity),
+        dot(-vertex[1].normal, _Velocity),
+        dot(-vertex[2].normal, _Velocity)
+    );
+
+    // ---------- 基础长度 & 噪声 ----------
     float baseLength = _EntryStrength * 0.0013;
-    float maxBaseLength = 5.2;
-    float3 noise;
-    noise.x = Noise(vertex[0].position.xy + vertex[0].uv, 1) * baseLength * Noise(vertex[0].position.xy + vertex[0].uv, 1) * 5;
-    noise.y = Noise(vertex[1].position.xy + vertex[1].uv, 1) * baseLength * Noise(vertex[1].position.xy + vertex[1].uv, 1) * 5;
-    noise.z = Noise(vertex[2].position.xy + vertex[2].uv, 1) * baseLength * Noise(vertex[2].position.xy + vertex[2].uv, 1) * 5;
+    float3 noise = float3(
+        Noise(vertex[0].position.xy + vertex[0].uv, 1) *
+                baseLength * Noise(vertex[0].position.xy + vertex[0].uv, 1) * 5,
+        Noise(vertex[1].position.xy + vertex[1].uv, 1) *
+                baseLength * Noise(vertex[1].position.xy + vertex[1].uv, 1) * 5,
+        Noise(vertex[2].position.xy + vertex[2].uv, 1) *
+                baseLength * Noise(vertex[2].position.xy + vertex[2].uv, 1) * 5
+    );
 
+    // ---------- 计算每个顶点的效果长度 ----------
     float3 effectLength = (baseLength + noise) * _LengthMultiplier;
     float3 middleLength = effectLength * 0.2;
-    float middleNormalMultiplier = 0.23 + lerp(0.1 * _FxState, 0, saturate((entrySpeed - 0.2) * 4));
-    float maxEffectLength = (maxBaseLength * 6) * _LengthMultiplier;
+
+    float middleNormalMultiplier = 0.23 + lerp(0.1 * _FxState, 0,
+                         saturate((entrySpeed - 0.2) * 4));
+
+    // 最大可能的等离子体长度（用于 wrap 层上限）
+    float maxEffectLength = (5.2 * 6.0) * _LengthMultiplier; // 5.2 = maxBaseLength
+
+    // 对模型整体缩放做补偿，防止超大模型产生过长尾迹
     effectLength *= _ModelScale.y;
     middleLength *= _ModelScale.y;
 
-    for (i = 0; i < 3; i++)
+    // =========================================================
+    // 循环遍历三角形的三个顶点，决定是否生成几何体
+    // =========================================================
+    for (uint i = 0; i < 3; ++i)
     {
-        float velDot = velDots[i];
-        if (velDot > -0.1 && occlusion[i] > 0.9)
+        float curVelDot   = velDots[i];
+        float curOccl     = occlusion[i];
+
+        // 只在迎风且未被遮挡的面上生成等离子体
+        if (curVelDot > -0.1 && curOccl > 0.9)
         {
+            // --- 找出相邻顶点 j，k（用于边长、方向） ---
             uint j = (i + 1) % 3;
             uint k = (j + 1) % 3;
-                        
-            float edgeLength_j = length(vertex[i].position - vertex[j].position);
-            float edgeLength_k = length(vertex[i].position - vertex[k].position);
-            float edgeLength = (edgeLength_j + edgeLength_k) / 2 * (1 / _ModelScale.y);
-            float edgeMul = clamp(edgeLength / 0.05, 0.1, 40);
-            float sideEdgeMul = 1 - saturate(edgeLength - 0.1);
-                        
-            if (occlusion[k] > occlusion[j] || velDots[k] > velDots[j]) j = k;
-                        
-            float3 sizeVector = normalize(cross(vertex[i].velocityOS, vertex[i].normalOS));
-            float3 side = sizeVector * 0.6 * sideEdgeMul;
-            float3 middleSide = side * 1.4 * clamp(entrySpeed, 0.2, 1);
-            float3 endSide = side * 2.5 * clamp(entrySpeed, 0.2, 1);
-            side *= 0.3;
-                        
-            float vertNoise = Noise(vertex[i].position.xy + vertex[i].uv + _Time.x, 0);
-            float vertNoise1 = Noise(vertex[i].position.xy - _Time.y * (1 - _RandomnessFactor.x), 1 + round(_RandomnessFactor.x));
-            float vertNoise2 = Noise(vertex[i].position.xy - _Time.x, 1);
-                        
-            float normalMultiplier = 0.8 * pow(_LengthMultiplier, lerp(5, 1, saturate(_LengthMultiplier))) + lerp(2 * _LengthMultiplier * _FxState, 0, saturate((entrySpeed - 0.2) * 4));
 
-            float4 col = lerp(_PrimaryColor, _SecondaryColor, vertNoise * 0.3);
+            // ---------- 边长（用于宽度、密度） ----------
+            float edgeLenJ = length(vertex[i].position - vertex[j].position);
+            float edgeLenK = length(vertex[i].position - vertex[k].position);
+            float edgeLen  = (edgeLenJ + edgeLenK) * 0.5 / _ModelScale.y;
+            float edgeMul  = clamp(edgeLen / 0.05, 0.1, 40);
+            float sideEdgeMul = 1.0 - saturate(edgeLen - 0.1);
+
+            // 如果 k 的遮挡或速度点积更大，改用 k 作为“次 dominant”
+            if (occlusion[k] > occlusion[j] || velDots[k] > velDots[j])
+                j = k;
+
+            // ---------- 计算几何宽度向量 ----------
+            float3 sizeVec   = normalize(cross(vertex[i].velocityOS,
+                                              vertex[i].normalOS));
+            float3 side      = sizeVec * 0.6 * sideEdgeMul;
+            float3 middleSide = side * 1.4 * clamp(entrySpeed, 0.2, 1);
+            float3 endSide    = side * 2.5 * clamp(entrySpeed, 0.2, 1);
+            side *= 0.3; // 基准收缩
+
+            // ---------- 噪声（用于颜色、长度随机） ----------
+            float vertNoise  = Noise(vertex[i].position.xy + vertex[i].uv
+                                     + _Time.x, 0);
+            float vertNoise1 = Noise(vertex[i].position.xy
+                          - _Time.y * (1.0 - _RandomnessFactor.x),
+                          1 + (int)round(_RandomnessFactor.x));
+            float vertNoise2 = Noise(vertex[i].position.xy - _Time.x, 1);
+
+            // ---------- 长度乘子 ----------
+            float normalMultiplier = 0.8 *
+                pow(_LengthMultiplier,
+                    lerp(5,1,saturate(_LengthMultiplier))) +
+                lerp(2 * _LengthMultiplier * _FxState, 0,
+                     saturate((entrySpeed - 0.2) * 4));
+
+            // ---------- 基础颜色 ----------
+            float4 col       = lerp(_PrimaryColor, _SecondaryColor,
+                                   vertNoise * 0.3);
             float4 middleCol = lerp(col, _SecondaryColor, 0.5);
-            float4 endCol = lerp(_SecondaryColor, _TertiaryColor, clamp(entrySpeed, 0, 1.7));
+            float4 endCol   = lerp(_SecondaryColor, _TertiaryColor,
+                                  clamp(entrySpeed,0,1.7));
             endCol = lerp(middleCol, endCol, _Hdr);
 
-            float alpha = saturate(entrySpeed / 0.025) * (0.004 * _TrailAlphaMultiplier + vertNoise * 0.004);
+            // ---------- 透明度 ----------
+            float alpha = saturate(entrySpeed / 0.025) *
+                (0.004 * _TrailAlphaMultiplier + vertNoise * 0.004);
 
+            // ---------- Mach / 速度系数 ----------
             float t = saturate(entrySpeed / 0.25 - 1);
-            float fxState = lerp(_FxState, _FxState * 0.05, saturate(sign(_Velocity.y)));
-            float interpolation = saturate(t + _FxState);
+            float fxState = lerp(_FxState, _FxState * 0.05,
+                                 saturate(sign(_Velocity.y)));
+            float interp = saturate(t + _FxState);
 
-            col = lerp(1, col, interpolation);
-            middleCol = lerp(1, middleCol, interpolation);
-            endCol = lerp(1, endCol, interpolation);
-                        
-            float aoa = pow(saturate(_AngleOfAttack / 20), 4);
+            col       = lerp(1, col,       interp);
+            middleCol = lerp(1, middleCol, interp);
+            endCol    = lerp(1, endCol,    interp);
+
+            // ---------- 攻角对亮度的影响 ----------
+            float aoa = pow(saturate(_AngleOfAttack / 20),4);
             alpha *= saturate(aoa + t + 0.5);
-                        
-            side *= _ModelScale.x;
-            middleSide *= _ModelScale.x;
-            endSide *= _ModelScale.x;
-            normalMultiplier *= _ModelScale.x;
-                        
-            effectLength = abs(effectLength);
-            middleLength = abs(middleLength);
-                        
-            float3 trailDir = (vertex[i].position - vertex[i].velocityOS * effectLength[i] + vertex[i].normalOS * normalMultiplier * entrySpeed) - vertex[i].position;
-            float3 normal = normalize(cross(sizeVector, trailDir));
-                        
-            float vertFresnel = Fresnel(vertex[i].normal, vertex[i].viewDir, 2);
-            alpha *= saturate(vertFresnel + 0.5 + vertNoise * 0.3) * edgeMul;
-                        
-            int streakValue = 0;
-            float streakNoise = vertNoise2;
-            float4 streakColor = lerp(float4(4, 1, 1, 1), float4(1, 4, 1, 1), streakNoise);
-            if (vertNoise1 > 0.73 - _StreakProbability && entrySpeed > 0.5 + _StreakThreshold)
-            {
-                col = lerp(_StreakColor, streakColor, _RandomnessFactor.x);
-                middleCol = lerp(_StreakColor, streakColor, _RandomnessFactor.x);
-                endCol = lerp(_StreakColor, streakColor, _RandomnessFactor.x);
-                effectLength *= 2;
-                alpha *= 2;
-                streakValue = 1;
-            }
-                        
-            float3 vertex_b0 = vertex[i].position - side;
-            float3 vertex_b1 = vertex[j].position + side;
-                        
-            float3 vertex_m0 = vertex[i].position - middleSide - vertex[i].velocityOS * middleLength[i] + vertex[i].normalOS * normalMultiplier * entrySpeed * middleNormalMultiplier;
-            float3 vertex_m1 = vertex[j].position + middleSide - vertex[j].velocityOS * middleLength[j] + vertex[j].normalOS * normalMultiplier * entrySpeed * middleNormalMultiplier;
-                        
-            float3 vertex_t0 = vertex[i].position - endSide - vertex[i].velocityOS * effectLength[i] + vertex[i].normalOS * normalMultiplier * entrySpeed;
-            float3 vertex_t1 = vertex[j].position + endSide - vertex[j].velocityOS * effectLength[j] + vertex[j].normalOS * normalMultiplier * entrySpeed;
-                        
-            float3 m0_ndc = GetAirstreamNDC(lerp(vertex_b0, vertex_m0, lerp(0.5, 0.1, saturate(entrySpeed - 0.5))));
-            float depth = Shadow(m0_ndc, -0.003, 1);
-            
-            float discardSegment = (depth < 0.9) ? 2.0 : 0.0;
 
-            triStream.Append(CreateVertex(vertex_b0, 0 - discardSegment, vertex[i].airstreamNDC, 0, 0, col, alpha));
-            triStream.Append(CreateVertex(vertex_b1, 0 - discardSegment, vertex[j].airstreamNDC, 1, 0, col, alpha));
-                        
-            triStream.Append(CreateVertex(vertex_m0, 0 - discardSegment, vertex[i].airstreamNDC, 0, 0.5, middleCol, alpha));
-            triStream.Append(CreateVertex(vertex_m1, 0 - discardSegment, vertex[j].airstreamNDC, 1, 0.5, middleCol, alpha));
-                        
-            triStream.Append(CreateVertex(vertex_t0, 0 - discardSegment, vertex[i].airstreamNDC, 0, 1, endCol, 0));
-            triStream.Append(CreateVertex(vertex_t1, 0 - discardSegment, vertex[j].airstreamNDC, 1, 1, endCol, 0));
+            // ---------- 缩放至模型空间 ----------
+            side       *= _ModelScale.x;
+            middleSide *= _ModelScale.x;
+            endSide    *= _ModelScale.x;
+            normalMultiplier *= _ModelScale.x;
+
+            // ---------- 取出当前顶点对应的长度 ----------
+            float curEffectLen = (i == 0) ? effectLength.x :
+                                 (i == 1) ? effectLength.y : effectLength.z;
+            float curMiddleLen = (i == 0) ? middleLength.x :
+                                 (i == 1) ? middleLength.y : middleLength.z;
+            curEffectLen = abs(curEffectLen);
+            curMiddleLen = abs(curMiddleLen);
+
+            // ---------- 计算 trailDir 与 Fresnel ----------
+            float3 trailDir = (vertex[i].position
+                               - vertex[i].velocityOS * curEffectLen
+                               + vertex[i].normalOS *
+                                 normalMultiplier * entrySpeed)
+                              - vertex[i].position;
+            float3 normal    = normalize(cross(sizeVec, trailDir));
+
+            float fresnel = Fresnel(vertex[i].normal,
+                                   vertex[i].viewDir, 2);
+            alpha *= saturate(fresnel + 0.5 + vertNoise * 0.3) * edgeMul;
+
+            // ---------- 随机条纹 (Streak) ----------
+            int streakValue = 0;
+            float4 streakCol = lerp(float4(4,1,1,1),
+                                  float4(1,4,1,1), vertNoise2);
+            if (vertNoise1 > 0.73 - _StreakProbability &&
+                entrySpeed > 0.5 + _StreakThreshold)
+            {
+                col       = lerp(_StreakColor, streakCol,
+                                 _RandomnessFactor.x);
+                middleCol = lerp(_StreakColor, streakCol,
+                                 _RandomnessFactor.x);
+                endCol    = lerp(_StreakColor, streakCol,
+                                 _RandomnessFactor.x);
+                curEffectLen *= 2.0;
+                alpha        *= 2.0;
+                streakValue   = 1;
+            }
+
+            // ---------- 计算 6 个关键顶点（底‑中‑顶） ----------
+            float3 v_b0 = vertex[i].position - side;
+            float3 v_b1 = vertex[j].position + side;
+
+            float3 v_m0 = vertex[i].position - middleSide
+                         - vertex[i].velocityOS * curMiddleLen
+                         + vertex[i].normalOS *
+                           normalMultiplier * entrySpeed *
+                           middleNormalMultiplier;
+            float3 v_m1 = vertex[j].position + middleSide
+                         - vertex[j].velocityOS * curMiddleLen
+                         + vertex[j].normalOS *
+                           normalMultiplier * entrySpeed *
+                           middleNormalMultiplier;
+
+            float3 v_t0 = vertex[i].position - endSide
+                         - vertex[i].velocityOS * curEffectLen
+                         + vertex[i].normalOS *
+                           normalMultiplier * entrySpeed;
+            float3 v_t1 = vertex[j].position + endSide
+                         - vertex[j].velocityOS * curEffectLen
+                         + vertex[j].normalOS *
+                           normalMultiplier * entrySpeed;
+
+            // ---------- 深度剔除（防止几何穿透模型） ----------
+            float3 ndcMid = GetAirstreamNDC(
+                lerp(v_b0, v_m0,
+                     lerp(0.5, 0.1, saturate(entrySpeed - 0.5))));
+            float depthMask = Shadow(ndcMid, -0.003, 1);
+            float discardSeg = (depthMask < 0.9) ? 2.0 : 0.0;
+
+            // ---------- 主层 (layer = 0) ----------
+            triStream.Append(CreateVertex(v_b0, 0 - discardSeg,
+                                         vertex[i].airstreamNDC,
+                                         0, 0, col, alpha));
+            triStream.Append(CreateVertex(v_b1, 0 - discardSeg,
+                                         vertex[j].airstreamNDC,
+                                         1, 0, col, alpha));
+
+            triStream.Append(CreateVertex(v_m0, 0 - discardSeg,
+                                         vertex[i].airstreamNDC,
+                                         0, 0.5, middleCol, alpha));
+            triStream.Append(CreateVertex(v_m1, 0 - discardSeg,
+                                         vertex[j].airstreamNDC,
+                                         1, 0.5, middleCol, alpha));
+
+            triStream.Append(CreateVertex(v_t0, 0 - discardSeg,
+                                         vertex[i].airstreamNDC,
+                                         0, 1, endCol, 0));
+            triStream.Append(CreateVertex(v_t1, 0 - discardSeg,
+                                         vertex[j].airstreamNDC,
+                                         1, 1, endCol, 0));
 
             triStream.RestartStrip();
-            
-            entrySpeed = clamp(entrySpeed, 0, 1);
-                        
-            float vertFresnelWrap = Fresnel(vertex[i].normal, vertex[i].viewDir, 1); // 修复：改名避免重复
-            vertFresnelWrap += (1 - vertFresnelWrap) * _WrapFresnelModifier;
-                        
-            middleLength = clamp(middleLength, 0, maxEffectLength * 0.2);
-            effectLength = clamp(effectLength * 3.4 * clamp(entrySpeed, 0, 0.6) * _FxState, 0, maxEffectLength * 1.6);
-            float normalMultiplierWrap = -2.325 * saturate(pow(_LengthMultiplier, 3)) * _ModelScale.x;
-            float middleNormalMultiplierWrap = 0.05;
 
-            alpha *= 0.5 * vertFresnelWrap * min(entrySpeed, 0.7) * _FxState;
+            // ======================================================
+            // --------------------- Wrap 层 (layer = 1) --------------
+            // ======================================================
+            if (_FxState < 0.6) continue;                // 强度不足直接跳过 wrap
 
-            col = _PrimaryColor;
-            middleCol = lerp(_LayerColor, lerp(_LayerStreakColor, streakColor, _RandomnessFactor.y), streakValue);
-            endCol = lerp(lerp(_LayerColor, _SecondaryColor, 0.5), lerp(_LayerStreakColor, streakColor, _RandomnessFactor.y), streakValue);
+            entrySpeed = clamp(entrySpeed,0,1);
 
-            float3 layerOffset = vertex[i].velocityOS * -0.05 * _LengthMultiplier * _ModelScale.y;
-                        
-            vertex_b0 = vertex[i].position - side + layerOffset;
-            vertex_b1 = vertex[j].position + side + layerOffset;
-                        
-            vertex_m0 = vertex[i].position - middleSide + layerOffset - vertex[i].velocityOS * middleLength[i] + vertex[i].normalOS * normalMultiplierWrap * entrySpeed * middleNormalMultiplierWrap;
-            vertex_m1 = vertex[j].position + middleSide + layerOffset - vertex[j].velocityOS * middleLength[j] + vertex[j].normalOS * normalMultiplierWrap * entrySpeed * middleNormalMultiplierWrap;
-                        
-            vertex_t0 = vertex[i].position - endSide + layerOffset - vertex[i].velocityOS * effectLength[i] + vertex[i].normalOS * normalMultiplierWrap * entrySpeed;
-            vertex_t1 = vertex[j].position + endSide + layerOffset - vertex[j].velocityOS * effectLength[j] + vertex[j].normalOS * normalMultiplierWrap * entrySpeed;
-            
+            float fresnelWrap = Fresnel(vertex[i].normal,
+                                        vertex[i].viewDir, 1);
+            fresnelWrap += (1.0 - fresnelWrap) * _WrapFresnelModifier;
+
+            // 调整长度上限
+            middleLength = clamp(middleLength, 0,
+                                 maxEffectLength * 0.2);
+            curEffectLen = clamp(curEffectLen * 3.4 *
+                                 clamp(entrySpeed,0,0.6) *
+                                 _FxState,
+                                 0, maxEffectLength * 1.6);
+            float normalMulWrap = -2.325 *
+                saturate(pow(_LengthMultiplier,3)) * _ModelScale.x;
+            float middleNormalMulWrap = 0.05;
+
+            alpha *= 0.5 * fresnelWrap *
+                     min(entrySpeed,0.7) * _FxState;
+
+            // Wrap 层颜色
+            float4 wrapCol = _PrimaryColor;
+            float4 wrapMidCol = lerp(_LayerColor,
+                                    lerp(_LayerStreakColor,
+                                         streakCol,
+                                         _RandomnessFactor.y),
+                                    streakValue);
+            float4 wrapEndCol = lerp( lerp(_LayerColor,
+                                          _SecondaryColor, 0.5),
+                                      lerp(_LayerStreakColor,
+                                           streakCol,
+                                           _RandomnessFactor.y),
+                                      streakValue );
+
+            // 整体向后位移，防止几何刺穿模型
+            float3 layerOffset = vertex[i].velocityOS *
+                                 -0.05 * _LengthMultiplier *
+                                 _ModelScale.y;
+
+            // 重新计算 Wrap 层的 6 个顶点
+            v_b0 = vertex[i].position - side + layerOffset;
+            v_b1 = vertex[j].position + side + layerOffset;
+
+            v_m0 = vertex[i].position - middleSide + layerOffset
+                   - vertex[i].velocityOS * curMiddleLen
+                   + vertex[i].normalOS *
+                     normalMulWrap * entrySpeed *
+                     middleNormalMulWrap;
+            v_m1 = vertex[j].position + middleSide + layerOffset
+                   - vertex[j].velocityOS * curMiddleLen
+                   + vertex[j].normalOS *
+                     normalMulWrap * entrySpeed *
+                     middleNormalMulWrap;
+
+            v_t0 = vertex[i].position - endSide + layerOffset
+                   - vertex[i].velocityOS * curEffectLen
+                   + vertex[i].normalOS *
+                     normalMulWrap * entrySpeed;
+            v_t1 = vertex[j].position + endSide + layerOffset
+                   - vertex[j].velocityOS * curEffectLen
+                   + vertex[j].normalOS *
+                     normalMulWrap * entrySpeed;
+
             float discardWrap = (_FxState < 0.6) ? 2.0 : 0.0;
 
-            triStream.Append(CreateVertex(vertex_b0, 1 - discardWrap, vertex[i].airstreamNDC, 0, 0, col, alpha));
-            triStream.Append(CreateVertex(vertex_b1, 1 - discardWrap, vertex[j].airstreamNDC, 1, 0, col, alpha));
-                        
-            triStream.Append(CreateVertex(vertex_m0, 1 - discardWrap, vertex[i].airstreamNDC, 0, 0.5, middleCol, alpha));
-            triStream.Append(CreateVertex(vertex_m1, 1 - discardWrap, vertex[j].airstreamNDC, 1, 0.5, middleCol, alpha));
-                        
-            triStream.Append(CreateVertex(vertex_t0, 1 - discardWrap, vertex[i].airstreamNDC, 0, 1, endCol, 0));
-            triStream.Append(CreateVertex(vertex_t1, 1 - discardWrap, vertex[j].airstreamNDC, 1, 1, endCol, 0));
-                        
+            // Wrap 层输出
+            triStream.Append(CreateVertex(v_b0, 1 - discardWrap,
+                                         vertex[i].airstreamNDC,
+                                         0, 0, wrapCol, alpha));
+            triStream.Append(CreateVertex(v_b1, 1 - discardWrap,
+                                         vertex[j].airstreamNDC,
+                                         1, 0, wrapCol, alpha));
+
+            triStream.Append(CreateVertex(v_m0, 1 - discardWrap,
+                                         vertex[i].airstreamNDC,
+                                         0, 0.5, wrapMidCol, alpha));
+            triStream.Append(CreateVertex(v_m1, 1 - discardWrap,
+                                         vertex[j].airstreamNDC,
+                                         1, 0.5, wrapMidCol, alpha));
+
+            triStream.Append(CreateVertex(v_t0, 1 - discardWrap,
+                                         vertex[i].airstreamNDC,
+                                         0, 1, wrapEndCol, 0));
+            triStream.Append(CreateVertex(v_t1, 1 - discardWrap,
+                                         vertex[j].airstreamNDC,
+                                         1, 1, wrapEndCol, 0));
+
             triStream.RestartStrip();
-        }
-    }
-    */
-    for (uint v = 0; v < 3; v++) {
-        float3 base = vertex[v].position;
-        GS_DATA o;
-        o.position = UnityObjectToClipPos(base + float3(-1, -1, 0));
-        o.color = half4(1,1,0,1);
-        o.positionWS = TransformObjectToWorld(base);
-        o.positionOS = base;
-        o.screenPos = o.position;
-        o.trailPos = float2(0,0);
-        o.layer = 0;
-        o.airstreamNDC = vertex[v].airstreamNDC;
-        triStream.Append(o);
-
-        o.position = UnityObjectToClipPos(base + float3(1, -1, 0));
-        triStream.Append(o);
-
-        o.position = UnityObjectToClipPos(base + float3(-1, 1, -5));
-        triStream.Append(o);
-
-        o.position = UnityObjectToClipPos(base + float3(1, 1, -5));
-        triStream.Append(o);
-
-        triStream.RestartStrip();
-    }
+        } // if (velDot && occlusion)
+    } // for each vertex
 }
 
-half4 eff_gs_frag(GS_DATA IN) : SV_Target
+//-----------------------------------------------------------
+// Fragment Shader
+//-----------------------------------------------------------
+half4 eff_gs_frag ( GS_DATA IN ) : SV_Target
 {
-    float4 c = IN.color;
-    
-    // 修复：确保 clip 正确工作
+    float4 col = IN.color;
+
+    // 只渲染 layer >= 0 的几何体（负值表示 “已被裁掉”）
     clip(IN.layer >= 0 ? 1.0 : -1.0);
-    
-    float entrySpeed = _EntryStrength / 4000 - 0.08 * _FxState;
-    float speedScalar = saturate(lerp(0, 2.5, entrySpeed));
-                
-    float2 circleCoord = GetAirstreamNDC(normalize(IN.positionOS));
-    float angle = atan2(circleCoord.y, circleCoord.x);
-                
-    float2 trailPos = 1 - IN.trailPos;
+
+    // ---------- 基本参数 ----------
+    float entrySpeed = _EntryStrength / 4000.0 - 0.08 * _FxState;
+    float speedScalar = saturate(lerp(0.0, 2.5, entrySpeed));
+
+    // ---------- 环形坐标 + 角度 ----------
+    float3 ndcCoord = GetAirstreamNDC(normalize(IN.positionOS));
+    float angle = atan2(ndcCoord.y, ndcCoord.x);
+
+    // ---------- 尾迹位置 ----------
+    float2 trailPos = 1.0 - IN.trailPos;          // (0,0)=头, (1,1)=尾
     float trailPosScalar0 = pow(trailPos.y, 2);
     float trailPosScalar1 = 0.2;
     float trailPosScalar = lerp(trailPosScalar0, trailPosScalar1, IN.layer);
-    float invTrailPosScalar = 1 - trailPosScalar;
-                
-    float2 scrollScale = float2(lerp(0.6, 0.1, IN.layer), lerp(-8, -0.2, IN.layer));
-    float2 timeOffset = float2(_Time.y * scrollScale.x, _Time.y * scrollScale.y * (entrySpeed + 0.5));
-    float2 scale0 = float2(0.1, 2);
-    float2 scale1 = float2(lerp(1, 0.2, trailPosScalar0 + 0.5), lerp(1, 0.1, trailPosScalar0 + 0.5));
-    float2 uv = lerp(scale0, scale1, IN.layer) * trailPos + float2(angle, 0) - timeOffset;
-                
-    float noise = NoiseStatic(uv, lerp(3, 2, IN.layer)) * speedScalar * trailPosScalar;
-    float noiseSign = lerp(1, -1, IN.layer);
-                
-    noise = max(0, noise);
-                
-    float alpha0 = saturate(c.a + noise * 0.05);
-    float alpha1 = saturate(c.a - (noise * c.a * 7));
-                
-    float scalar0 = (0.1 + invTrailPosScalar * 0.05);
-    float scalar1 = 1 - trailPosScalar0;
-                
-    c.a = lerp(alpha0, alpha1, IN.layer) * lerp(scalar0, scalar1, IN.layer) * _OpacityMultiplier * lerp(1.0, _WrapOpacityMultiplier, IN.layer);
-                
-    float c_a = saturate(c.a);
-    c.rgb *= lerp(c_a * 1.3, 1.0, _Hdr);
-    c.a = lerp(1, c_a, _Hdr);
-                
-    float DitheringGrain = 0.5 / 255.0;
-    float dither = _DitherTex.SampleLevel(sampler_DitherTex, IN.screenPos.xy / _ScreenParams.xy * 500 + _Time.x, 0).r * trailPos.y;
-    float3 cd = lerp(c.rgb, dither, DitheringGrain);
-    c.rgb = lerp(cd + (-DitheringGrain / 4), c.rgb, _Hdr);
+    float invTrailPosScalar = 1.0 - trailPosScalar;
 
-    return c;
+    // ---------- UV 计算 (包含滚动、缩放) ----------
+    float2 scrollScale = float2( lerp(0.6, 0.1, IN.layer),
+                                 lerp(-8.0, -0.2, IN.layer) );
+    float2 timeOffset  = float2(_Time.y * scrollScale.x,
+                               _Time.y * scrollScale.y * (entrySpeed + 0.5));
+    float2 scale0 = float2(0.1, 2);
+    float2 scale1 = float2( lerp(1.0, 0.2, trailPosScalar0 + 0.5),
+                           lerp(1.0, 0.1, trailPosScalar0 + 0.5) );
+    float2 uv = lerp(scale0, scale1, IN.layer) *
+                trailPos + float2(angle,0) - timeOffset;
+
+    // ---------- 噪声 ----------
+    int noiseChannel = (int)round(lerp(3.0, 2.0, IN.layer));   // 强制转 int
+    float noise = NoiseStatic(uv, noiseChannel) *
+                  speedScalar * trailPosScalar;
+    noise = max(0.0, noise);
+
+    // ---------- Alpha 组合 ----------
+    float alpha0 = saturate(col.a + noise * 0.05);
+    float alpha1 = saturate(col.a - (noise * col.a * 7.0));
+
+    float scalar0 = 0.1 + invTrailPosScalar * 0.05;
+    float scalar1 = 1.0 - trailPosScalar0;
+
+    col.a = lerp(alpha0, alpha1, IN.layer) *
+            lerp(scalar0, scalar1, IN.layer) *
+            _OpacityMultiplier *
+            lerp(1.0, _WrapOpacityMultiplier, IN.layer);
+
+    // ---------- HDR 处理 ----------
+    float aClamped = saturate(col.a);
+    col.rgb *= lerp(aClamped * 1.3, 1.0, _Hdr);
+    col.a    = lerp(1.0, aClamped, _Hdr);
+
+    // ---------- Dither (减轻带状噪点) ----------
+    float dithGran = 0.5 / 255.0;
+    float dither = _DitherTex.SampleLevel(
+                       sampler_DitherTex,
+                       IN.screenPos.xy / _ScreenParams.xy * 500.0 + _Time.x,
+                       0).r * trailPos.y;
+    float3 cd = lerp(col.rgb, dither, dithGran);
+    col.rgb = lerp(cd + (-dithGran / 4.0), col.rgb, _Hdr);
+
+    return col;
 }

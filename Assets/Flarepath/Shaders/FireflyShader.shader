@@ -15,6 +15,7 @@ Shader "Firefly/Firefly"
 		_WrapFresnelModifier ("Wrap layer fresnel modifier", Float) = 0
 		_StreakProbability ("Streak Probability", Float) = 0.1
 		_StreakThreshold ("Streak Threshold", Float) = -0.2
+		
 	}
 
 	SubShader

@@ -84,5 +84,5 @@ float NoiseStatic(float2 uv, int channel)
 
 float Fresnel(float3 normal, float3 viewDir, float power) 
 {
-	return pow((1.0 - saturate(dot(normalize(normal), normalize(viewDir)))), power);
+	return pow(1.0 - saturate(dot(normalize(normal), normalize(viewDir))), power);
 }
