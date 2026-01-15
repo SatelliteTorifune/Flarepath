@@ -97,14 +97,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cd56497984344777881c693c2fda0dc2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  entryStrength: 2000
-  velocityWorld: {x: 0, y: 1000, z: 0}
+  entryStrength: 3000
+  velocityWorld: {x: 0, y: 0, z: 0}
   angleOfAttack: 0
   autoCalculateAngleOfAttack: 1
   fxState: 0.8
-  lengthMultiplier: 1
+  lengthMultiplier: 2
   trailAlphaMultiplier: 1
-  opacityMultiplier: 1
+  opacityMultiplier: 1.5
   wrapOpacityMultiplier: 0.5
   wrapFresnelModifier: 0
   streakProbability: 0.1
@@ -112,9 +112,10 @@ MonoBehaviour:
   randomnessFactor: {x: 0.5, y: 0.5}
   enableBowshock: 1
   bowshockIntensity: 0.8
-  shockwaveColor: {r: 0.2, g: 0.6, b: 1, a: 1}
+  shockwaveColor: {r: 1, g: 0.3, b: 0, a: 1}
   bowshockForwardDistance: 0.3
   bowshockRadiusScale: 1
+  boundsExtension: {x: 50, y: 50, z: 200}
 --- !u!114 &8573108427343034840
 MonoBehaviour:
   m_ObjectHideFlags: 0

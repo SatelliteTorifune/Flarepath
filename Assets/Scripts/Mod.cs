@@ -65,6 +65,7 @@ namespace Assets.Scripts
         private void SetUp(IPartScript partScript)
         {
             var test = partScript.GameObject.GetComponentInChildren<MeshFilter>().mesh;
+            //var test = partScript.PrimaryCollider.attachedRigidbody.gameObject.GetComponentInChildren<MeshFilter>().mesh;
             if (test==null)
             {
                 Debug.Log("wocao!!!!!");
