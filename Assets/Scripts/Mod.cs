@@ -1,6 +1,7 @@
 using Assets.Scripts.Flight.Sim;
 using HarmonyLib;
 using ModApi.Craft;
+using ModApi.Craft.Parts;
 using ModApi.Flight.GameView;
 using ModApi.Scenes.Events;
 using UnityEditor;
@@ -53,7 +54,27 @@ namespace Assets.Scripts
                 return;
             }
 
+            foreach (var pd in ModApi.Common.Game.Instance.FlightScene.CraftNode.CraftScript.Data.Assembly.Parts)
+            {
+
+                SetUp(pd.PartScript);
+            }
+
         }
-        
+
+        private void SetUp(IPartScript partScript)
+        {
+            var test = partScript.GameObject.GetComponentInChildren<MeshFilter>().mesh;
+            if (test==null)
+            {
+                Debug.Log("wocao!!!!!");
+                return;
+            }
+            var EffectObject = UnityEngine.Object.Instantiate(Mod.ResourceLoader.LoadAsset<GameObject>("Assets/Resources/Effect.prefab") as GameObject); ;
+            EffectObject.GetComponent<ReEntryEffectManager>().Effect = EffectObject.GetComponent<ReEntryEffect>();
+            EffectObject.GetComponent<ReEntryEffectManager>().part = partScript;
+            EffectObject.GetComponent<MeshFilter>().mesh = test;
+        }
+
     }
 }
