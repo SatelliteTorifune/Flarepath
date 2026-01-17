@@ -19,12 +19,15 @@ public class ReEntryEffectManager:MonoBehaviour
 
         public void Update()
         {
-            /*
-            if (part.CraftScript.FlightData.AtmosphereSample.AirDensity==0)
+            if (false)
             {
-                return;
+                if (part.CraftScript.FlightData.AtmosphereSample.AirDensity==0)
+                {
+                    return;
+                }
+             
             }
-            */
+            
             this.gameObject.transform.position=part.GameObject.transform.position;
             this.gameObject.transform.rotation=part.GameObject.transform.rotation;
             Effect.velocityWorld = part.CraftScript.FlightData.SurfaceVelocity.ToVector3();
@@ -36,6 +39,7 @@ public class ReEntryEffectManager:MonoBehaviour
     
         private float GetEntryStrength()
         {
+            return 3000f;
             float temp = part.Temperature;
             if (temp < ignitionTemp)
             {

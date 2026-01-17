@@ -101,21 +101,24 @@ MonoBehaviour:
   velocityWorld: {x: 0, y: 0, z: 0}
   angleOfAttack: 0
   autoCalculateAngleOfAttack: 1
-  fxState: 0.8
+  fxState: 0
   lengthMultiplier: 2
-  trailAlphaMultiplier: 1
-  opacityMultiplier: 1.5
+  trailAlphaMultiplier: 2
+  opacityMultiplier: 2
   wrapOpacityMultiplier: 0.5
   wrapFresnelModifier: 0
   streakProbability: 0.1
   streakThreshold: -0.2
   randomnessFactor: {x: 0.5, y: 0.5}
-  enableBowshock: 1
+  enableBowshock: 0
   bowshockIntensity: 0.8
   shockwaveColor: {r: 1, g: 0.3, b: 0, a: 1}
   bowshockForwardDistance: 0.3
   bowshockRadiusScale: 1
-  boundsExtension: {x: 50, y: 50, z: 200}
+  boundsExtension: {x: 500, y: 500, z: 2000}
+  minTemp: 600
+  ignitionTemp: 900
+  maxTemp: 2800
 --- !u!114 &8573108427343034840
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -54,15 +54,14 @@ namespace Assets.Scripts
                 return;
             }
 
-            foreach (var pd in ModApi.Common.Game.Instance.FlightScene.CraftNode.CraftScript.Data.Assembly.Parts)
+            foreach (var pd in ModApi.Common.Game.Instance.FlightScene.CraftNode.CraftScript.Data.Assembly.Parts) 
             {
-
-                SetUp(pd.PartScript);
+                PartSetUp(pd.PartScript);
             }
-
+            
         }
 
-        private void SetUp(IPartScript partScript)
+        private void PartSetUp(IPartScript partScript)
         {
             var test = partScript.GameObject.GetComponentInChildren<MeshFilter>().mesh;
             //var test = partScript.PrimaryCollider.attachedRigidbody.gameObject.GetComponentInChildren<MeshFilter>().mesh;
