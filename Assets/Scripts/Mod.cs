@@ -1,3 +1,4 @@
+using Assets.Packages.DevConsole;
 using Assets.Scripts.Flight.Sim;
 using HarmonyLib;
 using ModApi.Craft;
@@ -30,8 +31,6 @@ namespace Assets.Scripts
         {
         }
         
-        public Shader fixedReentryShader;
-        public Material flameMaterial;
         /// <summary>
         /// Gets the singleton instance of the mod object.
         /// </summary>
@@ -39,13 +38,19 @@ namespace Assets.Scripts
         public static Mod Instance { get; } = GetModInstance<Mod>();
         GameObject ReEntryPrefab;
 
+        public int boundsExtensionz = 200;
+        public int boundsExtensionx = 150;
+        public int boundsExtensiony = 150;
         public override void OnModLoaded()
         {
             base.OnModLoaded();
             var harmony = new Harmony("com.SatelliteTorifune.BetterReentry");
             harmony.PatchAll();
             Game.Instance.SceneManager.SceneLoaded += OnSceneLoaded;
+            RegisterCommand();
+            
         }
+        
 
         private void OnSceneLoaded(object o, SceneEventArgs e)
         {
@@ -74,6 +79,13 @@ namespace Assets.Scripts
             EffectObject.GetComponent<ReEntryEffectManager>().Effect = EffectObject.GetComponent<ReEntryEffect>();
             EffectObject.GetComponent<ReEntryEffectManager>().part = partScript;
             EffectObject.GetComponent<MeshFilter>().mesh = test;
+        }
+
+        private void RegisterCommand()
+        {
+            DevConsoleApi.RegisterCommand<int>("fuckUz",x=>this.boundsExtensionz=x);
+            DevConsoleApi.RegisterCommand<int>("fuckUx",x=>this.boundsExtensionx=x);
+            DevConsoleApi.RegisterCommand<int>("fuckUy",x=>this.boundsExtensiony=x);
         }
 
     }

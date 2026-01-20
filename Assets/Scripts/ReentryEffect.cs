@@ -59,6 +59,8 @@ public class ReEntryEffect : MonoBehaviour
     private Camera _airstreamCam;
     private RenderTexture _shadowRT;
 
+    private MeshFilter mf;
+
     void Awake()
     {
         _rend = GetComponent<Renderer>();
@@ -90,7 +92,7 @@ public class ReEntryEffect : MonoBehaviour
         // 把深度纹理绑定到 shader
         _mat.SetTexture("_AirstreamTex", _shadowRT);
 
-        MeshFilter mf = GetComponent<MeshFilter>();
+        mf = GetComponent<MeshFilter>();
         if (mf != null && mf.sharedMesh != null)
         {
             originalBounds = mf.sharedMesh.bounds;
@@ -108,7 +110,7 @@ public class ReEntryEffect : MonoBehaviour
     {
         if (_shadowRT) _shadowRT.Release();
         if (_airstreamCam) DestroyImmediate(_airstreamCam.gameObject);
-        MeshFilter mf = GetComponent<MeshFilter>();
+        mf = GetComponent<MeshFilter>();
         if (mf != null)
         {
             mf.mesh = Instantiate(mf.sharedMesh); // 或直接用 sharedMesh
@@ -177,9 +179,11 @@ public class ReEntryEffect : MonoBehaviour
 
     private void UpdateExtendedBounds()
     {
-        
-        MeshFilter mf = GetComponent<MeshFilter>();
-        if (mf == null) return;
+        MeshFilter mfcu=GetComponent<MeshFilter>();
+        if (mfcu == null)
+        {
+            return;
+        }
 
         // 计算扩展后的包围盒中心和大小
         Vector3 center = transform.position;
@@ -193,13 +197,11 @@ public class ReEntryEffect : MonoBehaviour
 
         // 应用到 Mesh.bounds（注意：这里直接修改 sharedMesh.bounds 会影响所有实例，推荐用自定义 Mesh）
         // 更安全做法：创建一个自定义 Mesh 副本
-        if (mf.mesh.bounds != extended)
+        if (mfcu.mesh.bounds != extended)
         {
-            Mesh customMesh = Instantiate(mf.sharedMesh); // 复制一份，避免影响原始
+            Mesh customMesh = Instantiate(mfcu.sharedMesh); // 复制一份，避免影响原始
             customMesh.bounds = extended;
-            mf.mesh = customMesh;
+            mfcu.mesh = customMesh;
         }
     }
-
-   
 }

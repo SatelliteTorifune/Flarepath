@@ -1,10 +1,12 @@
 using System;
+using Assets.Scripts;
 using ModApi.Craft.Parts;
 using UnityEngine;
 
 public class ReEntryEffectManager:MonoBehaviour
 {
         public ReEntryEffect Effect;
+        public ParticleSystem ParticleSystem;
         public IPartScript part;
         private float minTemp;
         private float ignitionTemp;
@@ -27,15 +29,29 @@ public class ReEntryEffectManager:MonoBehaviour
                 }
              
             }
+            ParticleEffectUpdate();
+            ReEntryEffectUpdate();
             
+            
+           
+        }
+
+        private void ReEntryEffectUpdate()
+        {
             this.gameObject.transform.position=part.GameObject.transform.position;
             this.gameObject.transform.rotation=part.GameObject.transform.rotation;
             Effect.velocityWorld = part.CraftScript.FlightData.SurfaceVelocity.ToVector3();
             Effect.lengthMultiplier = 5;
             Effect.entryStrength = GetEntryStrength();
-           
+            Effect.boundsExtension.z = Mod.Instance.boundsExtensionz;
+            Effect.boundsExtension.x = Mod.Instance.boundsExtensionx;
+            Effect.boundsExtension.y = Mod.Instance.boundsExtensiony;
         }
-        
+
+        private void ParticleEffectUpdate()
+        {
+            
+        }
     
         private float GetEntryStrength()
         {

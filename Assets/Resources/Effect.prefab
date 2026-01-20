@@ -115,7 +115,7 @@ MonoBehaviour:
   shockwaveColor: {r: 1, g: 0.3, b: 0, a: 1}
   bowshockForwardDistance: 0.3
   bowshockRadiusScale: 1
-  boundsExtension: {x: 500, y: 500, z: 2000}
+  boundsExtension: {x: 500, y: 500, z: 200}
   minTemp: 600
   ignitionTemp: 900
   maxTemp: 2800
@@ -132,3 +132,4 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   Effect: {fileID: 5505601858776063142}
+  ParticleSystem: {fileID: 0}
