@@ -125,16 +125,13 @@ GS_INPUT eff_gs_vert ( VS_INPUT IN )
     return OUT;
 }
 
-//-----------------------------------------------------------
 // Geometry Shader
-// -----------------------------------------------------------
-// 为了兼容所有平台（尤其是 OpenGL ES），不再对
-// float3/float4 使用写索引，而是手写 x/y/z 分量。
+
 // maxvertexcount 限制：GS_DATA有25个标量组件，D3D11限制是1024
 // 1024 / 25 = 40.96，所以最多40个顶点
 // 每个三角形边最多生成：主层10个顶点 + Wrap层10个顶点 = 20个顶点
 //
-[maxvertexcount(40)]
+[maxvertexcount(20)]
 void eff_gs_geom ( triangle GS_INPUT vertex[3],
                   inout TriangleStream<GS_DATA> triStream )
 {

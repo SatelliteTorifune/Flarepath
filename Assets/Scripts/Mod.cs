@@ -38,9 +38,6 @@ namespace Assets.Scripts
         public static Mod Instance { get; } = GetModInstance<Mod>();
         GameObject ReEntryPrefab;
 
-        public int boundsExtensionz = 200;
-        public int boundsExtensionx = 150;
-        public int boundsExtensiony = 150;
         public override void OnModLoaded()
         {
             base.OnModLoaded();
@@ -83,9 +80,6 @@ namespace Assets.Scripts
 
         private void RegisterCommand()
         {
-            DevConsoleApi.RegisterCommand<int>("fuckUz",x=>this.boundsExtensionz=x);
-            DevConsoleApi.RegisterCommand<int>("fuckUx",x=>this.boundsExtensionx=x);
-            DevConsoleApi.RegisterCommand<int>("fuckUy",x=>this.boundsExtensiony=x);
         }
 
     }

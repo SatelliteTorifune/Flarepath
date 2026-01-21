@@ -40,12 +40,10 @@ public class ReEntryEffectManager:MonoBehaviour
         {
             this.gameObject.transform.position=part.GameObject.transform.position;
             this.gameObject.transform.rotation=part.GameObject.transform.rotation;
+            this.gameObject.transform.localScale=part.GameObject.transform.localScale;
             Effect.velocityWorld = part.CraftScript.FlightData.SurfaceVelocity.ToVector3();
             Effect.lengthMultiplier = 5;
             Effect.entryStrength = GetEntryStrength();
-            Effect.boundsExtension.z = Mod.Instance.boundsExtensionz;
-            Effect.boundsExtension.x = Mod.Instance.boundsExtensionx;
-            Effect.boundsExtension.y = Mod.Instance.boundsExtensiony;
         }
 
         private void ParticleEffectUpdate()

@@ -43,9 +43,7 @@ public class ReEntryEffect : MonoBehaviour
 
     [Tooltip("Bowshock半径缩放")] [Range(0, 3)]
     public float bowshockRadiusScale = 1.0f;
-
-    [Header("剔除优化")] [Tooltip("扩展包围盒大小（单位：米），用于防止尾迹被视锥剔除")]
-    public Vector3 boundsExtension = new Vector3(50f, 50f, 200f); // x/y 宽，z 向后长（根据尾迹长度调）
+    
 
     private Bounds originalBounds;
     
@@ -196,7 +194,7 @@ public class ReEntryEffect : MonoBehaviour
         float finalRadius = Mathf.Max(sideRadius, estimatedTrailLength * 0.6f);  
 
         // 4. 用球形包围盒（最稳）
-        Bounds extended = new Bounds(center, Vector3.one * finalRadius * 2f);
+        Bounds extended = new Bounds(center, new Vector3(finalRadius * 2f,finalRadius * 2f,finalRadius * 2f));
 
         // 5. 应用
         _rend.bounds = extended;
