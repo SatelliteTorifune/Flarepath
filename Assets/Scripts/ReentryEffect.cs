@@ -1,4 +1,5 @@
 using System;
+using Assets.Scripts;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -179,29 +180,32 @@ public class ReEntryEffect : MonoBehaviour
 
     private void UpdateExtendedBounds()
     {
-        MeshFilter mfcu=GetComponent<MeshFilter>();
-        if (mfcu == null)
-        {
-            return;
-        }
+        if (_rend == null) return;
 
-        // 计算扩展后的包围盒中心和大小
-        Vector3 center = transform.position;
-        Vector3 extendedSize = originalBounds.size + boundsExtension * 2f; // 两边扩展
+        // 1. 估算尾迹实际长度
+        float estimatedTrailLength = entryStrength * 0.02f; 
+        estimatedTrailLength = Mathf.Max(150f, estimatedTrailLength); 
+        estimatedTrailLength *= lengthMultiplier; 
 
-        // 向后延伸（沿速度方向）
+        // 2. 中心点：物体位置 + 沿速度方向后移一半长度
         Vector3 velocityDir = velocityWorld.normalized;
-        center += velocityDir * (boundsExtension.z * 0.5f); // 中心后移
+        Vector3 center = transform.position + velocityDir * (estimatedTrailLength * 0.4f); 
 
-        Bounds extended = new Bounds(center, extendedSize);
+        // 3. 半径：横向 + 纵向保守估计
+        float sideRadius = 80f + estimatedTrailLength * 0.15f; 
+        float finalRadius = Mathf.Max(sideRadius, estimatedTrailLength * 0.6f);  
 
-        // 应用到 Mesh.bounds（注意：这里直接修改 sharedMesh.bounds 会影响所有实例，推荐用自定义 Mesh）
-        // 更安全做法：创建一个自定义 Mesh 副本
-        if (mfcu.mesh.bounds != extended)
+        // 4. 用球形包围盒（最稳）
+        Bounds extended = new Bounds(center, Vector3.one * finalRadius * 2f);
+
+        // 5. 应用
+        _rend.bounds = extended;
+
+        // 可选：同步 mesh.bounds
+        if (mf != null && mf.mesh != null)
         {
-            Mesh customMesh = Instantiate(mfcu.sharedMesh); // 复制一份，避免影响原始
-            customMesh.bounds = extended;
-            mfcu.mesh = customMesh;
+            mf.mesh.bounds = extended;
         }
+        
     }
 }
