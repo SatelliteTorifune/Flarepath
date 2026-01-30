@@ -1,5 +1,7 @@
 using System;
 using Assets.Scripts;
+using Assets.Scripts.Craft.Parts.Modifiers.Fuselage;
+using Assets.Scripts.FlarePath;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -44,9 +46,11 @@ public class ReEntryEffect : MonoBehaviour
     [Tooltip("Bowshock半径缩放")] [Range(0, 3)]
     public float bowshockRadiusScale = 1.0f;
     
+   
+    
 
     private Bounds originalBounds;
-    
+    [Header("温度相关(还没写)")]
     public float minTemp = 600f;
     public float ignitionTemp = 900f;
     public float maxTemp = 2800f;
@@ -103,8 +107,66 @@ public class ReEntryEffect : MonoBehaviour
 
         // 强制扩展 bounds（让 Unity 认为物体很大）
         UpdateExtendedBounds();
+        
+        
     }
+    
+    void Update()
+    {
+        if (autoCalculateAngleOfAttack && velocityWorld.magnitude > 0.1f)
+        {
+            Vector3 forward = transform.forward;
+            Vector3 velocityDir = velocityWorld.normalized;
 
+            // 计算速度方向与物体前方向的夹角（度）
+            float dot = Vector3.Dot(forward, velocityDir);
+            dot = Mathf.Clamp(dot, -1f, 1f);
+            angleOfAttack = Mathf.Acos(dot) * Mathf.Rad2Deg;
+        }
+
+        // 1) 传递矩阵（摄像机的 VP 矩阵，用于 Shadow 采样）
+        _airstreamCam.transform.position = transform.position - velocityWorld.normalized * 0.5f;
+        _airstreamCam.transform.rotation = Quaternion.LookRotation(velocityWorld.normalized, Vector3.up);
+        // 重新渲染深度（一次帧一次，性能成本很低）
+        _airstreamCam.RenderWithShader(Shader.Find("Hidden/DepthOnly"), "RenderType=DepthOnly");
+        _mat.SetMatrix("_AirstreamVP", _airstreamCam.projectionMatrix * _airstreamCam.worldToCameraMatrix);
+        SetMat();
+        //UpdateOcclusion();
+
+    }
+    public OcclusionSampler occlusionSampler;
+    private float lastOcclusionCheck = 0f;
+    private float occlusionFade = 1f;
+    
+    private void UpdateOcclusion()
+    {
+        if (occlusionSampler == null) return;
+
+        occlusionSampler.Update();
+
+        if (occlusionSampler.Ready)
+        {
+            float occlusion = occlusionSampler.Occlusion;
+            Debug.Log($"{gameObject.name} Occlusion: {occlusion:F2}");
+
+            if (occlusion > 0.7f)  // 遮挡 >70% → 不渲染
+            {
+                _rend.enabled = false;
+                occlusionFade = 0f;
+            }
+            else
+            {
+                _rend.enabled = true;
+                // 平滑淡出
+                occlusionFade = Mathf.Lerp(occlusionFade, 1f - occlusion, Time.deltaTime * 5f);
+                _mat.SetFloat("_OpacityMultiplier", opacityMultiplier * occlusionFade);
+                _mat.SetFloat("_TrailAlphaMultiplier", trailAlphaMultiplier * occlusionFade);
+            }
+
+            occlusionSampler.Ready = false;
+        }
+    }
+    
     void OnDestroy()
     {
         if (_shadowRT) _shadowRT.Release();
@@ -117,33 +179,13 @@ public class ReEntryEffect : MonoBehaviour
         }
     }
 
-    void Update()
+    private void SetMat()
     {
-        // 自动计算攻角（速度方向与物体前方向的夹角）
-        float calculatedAOA = angleOfAttack;
-        if (autoCalculateAngleOfAttack && velocityWorld.magnitude > 0.1f)
-        {
-            Vector3 forward = transform.forward;
-            Vector3 velocityDir = velocityWorld.normalized;
-
-            // 计算速度方向与物体前方向的夹角（度）
-            float dot = Vector3.Dot(forward, velocityDir);
-            dot = Mathf.Clamp(dot, -1f, 1f);
-            calculatedAOA = Mathf.Acos(dot) * Mathf.Rad2Deg;
-        }
-
-        // 1) 传递矩阵（摄像机的 VP 矩阵，用于 Shadow 采样）
-        _airstreamCam.transform.position = transform.position - velocityWorld.normalized * 0.5f;
-        _airstreamCam.transform.rotation = Quaternion.LookRotation(velocityWorld.normalized, Vector3.up);
-        // 重新渲染深度（一次帧一次，性能成本很低）
-        _airstreamCam.RenderWithShader(Shader.Find("Hidden/DepthOnly"), "RenderType=DepthOnly");
-        _mat.SetMatrix("_AirstreamVP", _airstreamCam.projectionMatrix * _airstreamCam.worldToCameraMatrix);
-
         // 2) 其它数值
         _mat.SetFloat("_EntryStrength", entryStrength);
         _mat.SetVector("_Velocity", velocityWorld);
         _mat.SetFloat("_FxState", fxState);
-        _mat.SetFloat("_AngleOfAttack", calculatedAOA);
+        _mat.SetFloat("_AngleOfAttack", angleOfAttack);
         _mat.SetFloat("_LengthMultiplier", lengthMultiplier);
         _mat.SetFloat("_TrailAlphaMultiplier", trailAlphaMultiplier);
         _mat.SetFloat("_OpacityMultiplier", opacityMultiplier);
@@ -153,7 +195,14 @@ public class ReEntryEffect : MonoBehaviour
         _mat.SetFloat("_StreakThreshold", streakThreshold);
         _mat.SetVector("_RandomnessFactor", randomnessFactor);
         _mat.SetVector("_ModelScale", transform.lossyScale);
-        _mat.SetVector("_EnvelopeScaleFactor", new Vector4(1, 1, 1, 1));
+        _mat.SetVector("_EnvelopeScaleFactor", new Vector4(1,1,1,1));
+        /*_mat.SetVector("_EnvelopeScaleFactor", new Vector4
+        (
+            1f / transform.lossyScale.x,
+            1f / transform.lossyScale.y,
+            1f / transform.lossyScale.z,
+            1f
+        ));*/
 
         // 3) 颜色（可以随需求调）
         _mat.SetColor("_PrimaryColor", new Color(1, 0.8f, 0.4f, 1));
@@ -168,13 +217,8 @@ public class ReEntryEffect : MonoBehaviour
         _mat.SetColor("_ShockwaveColor", shockwaveColor * bowshockIntensity);
         _mat.SetFloat("_BowshockForwardDistance", bowshockForwardDistance);
         _mat.SetFloat("_BowshockRadiusScale", bowshockRadiusScale);
-
     }
-
-    private void LateUpdate()
-    {
-        UpdateExtendedBounds();
-    }
+    private void LateUpdate() => UpdateExtendedBounds();
 
     private void UpdateExtendedBounds()
     {

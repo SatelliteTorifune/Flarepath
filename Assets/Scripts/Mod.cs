@@ -1,4 +1,5 @@
 using Assets.Packages.DevConsole;
+using Assets.Scripts.Craft.Parts.Modifiers.Fuselage;
 using Assets.Scripts.Flight.Sim;
 using HarmonyLib;
 using ModApi.Craft;
@@ -22,7 +23,7 @@ namespace Assets.Scripts
     /// <summary>
     /// A singleton object representing this mod that is instantiated and initialize when the mod is loaded.
     /// </summary>
-    public class Mod : ModApi.Mods.GameMod
+    public partial class Mod : ModApi.Mods.GameMod
     {
         /// <summary>
         /// Prevents a default instance of the <see cref="Mod"/> class from being created.
@@ -56,26 +57,16 @@ namespace Assets.Scripts
                 return;
             }
 
-            foreach (var pd in ModApi.Common.Game.Instance.FlightScene.CraftNode.CraftScript.Data.Assembly.Parts) 
-            {
-                PartSetUp(pd.PartScript);
-            }
+            AddEffectToCraft(ModApi.Common.Game.Instance.FlightScene.CraftNode.CraftScript);
             
         }
 
-        private void PartSetUp(IPartScript partScript)
+        public void AddEffectToCraft(ICraftScript craft)
         {
-            var test = partScript.GameObject.GetComponentInChildren<MeshFilter>().mesh;
-            //var test = partScript.PrimaryCollider.attachedRigidbody.gameObject.GetComponentInChildren<MeshFilter>().mesh;
-            if (test==null)
+            foreach (var pd in craft.Data.Assembly.Parts)
             {
-                Debug.Log("wocao!!!!!");
-                return;
+                PartSetUp(pd.PartScript);
             }
-            var EffectObject = UnityEngine.Object.Instantiate(Mod.ResourceLoader.LoadAsset<GameObject>("Assets/Resources/Effect.prefab") as GameObject); ;
-            EffectObject.GetComponent<ReEntryEffectManager>().Effect = EffectObject.GetComponent<ReEntryEffect>();
-            EffectObject.GetComponent<ReEntryEffectManager>().part = partScript;
-            EffectObject.GetComponent<MeshFilter>().mesh = test;
         }
 
         private void RegisterCommand()
