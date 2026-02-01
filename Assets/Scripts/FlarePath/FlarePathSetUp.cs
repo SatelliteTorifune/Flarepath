@@ -11,26 +11,17 @@ namespace Assets.Scripts
     {
         private void PartSetUp(IPartScript partScript)
         {
-            var test = partScript.GameObject.GetComponentInChildren<MeshFilter>().mesh;
+            var partMesh = partScript.GameObject.GetComponentInChildren<MeshFilter>().mesh;
 
-            if (test == null)
+            if (partMesh == null)
             {
                 return;
             }
-
-            FuselageScript fuselageScript = partScript.GetModifier<FuselageScript>();
-            if (fuselageScript != null)
-            {
-
-            }
-
-            var EffectObject =
-                UnityEngine.Object.Instantiate(
-                    Mod.ResourceLoader.LoadAsset<GameObject>("Assets/Resources/Effect.prefab") as GameObject);
-            ;
+            
+            var EffectObject = Object.Instantiate(Mod.ResourceLoader.LoadAsset<GameObject>("Assets/Resources/Effect.prefab") as GameObject);
             EffectObject.GetComponent<ReEntryEffectManager>().Effect = EffectObject.GetComponent<ReEntryEffect>();
             EffectObject.GetComponent<ReEntryEffectManager>().part = partScript;
-            EffectObject.GetComponent<MeshFilter>().mesh = test;
+            EffectObject.GetComponent<MeshFilter>().mesh = partMesh;
         }
 
     }

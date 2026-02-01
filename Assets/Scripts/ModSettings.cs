@@ -40,6 +40,7 @@ namespace Assets.Scripts
         ///// The TestSetting1 value.
         ///// </value>
         //public NumericSetting<float> TestSetting1 { get; private set; }
+        public BoolSetting ShowDevLog{get; private set;}
 
         /// <summary>
         /// Initializes the settings in the category.
@@ -50,6 +51,7 @@ namespace Assets.Scripts
             //    .SetDescription("A test setting that does nothing.")
             //    .SetDisplayFormatter(x => x.ToString("F1"))
             //    .SetDefault(2f);
+            this.ShowDevLog=this.CreateBool("Show Dev Log", "ShowDevLog").SetDefault(true).SetDescription("Show Log for devs or not");
         }
     }
 }

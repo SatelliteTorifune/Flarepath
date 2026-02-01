@@ -4,6 +4,7 @@ using Assets.Scripts.Craft.Parts.Modifiers.Fuselage;
 using Assets.Scripts.FlarePath;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.Serialization;
 
 /// <summary>
 /// 将速度、模型尺寸、Airstream阴影等信息传递给 AtmosphericReentry Shader。
@@ -57,7 +58,7 @@ public class ReEntryEffect : MonoBehaviour
 
 
     // ---------- 内部引用 ----------
-    private Renderer _rend;
+    [FormerlySerializedAs("_rend")] public Renderer effectRenderer;
     private Material _mat;
     private Camera _airstreamCam;
     private RenderTexture _shadowRT;
@@ -66,10 +67,10 @@ public class ReEntryEffect : MonoBehaviour
 
     void Awake()
     {
-        _rend = GetComponent<Renderer>();
+        effectRenderer = GetComponent<Renderer>();
         // 为了不污染共享材质，实例化一份
-        _mat = _rend.material;
-        _rend.material = _mat;
+        _mat = effectRenderer.material;
+        effectRenderer.material = _mat;
 
         // 创建用于 Airstream 深度的 RT（分辨率 512 按需求可调）
         _shadowRT = new RenderTexture(512, 512, 16, RenderTextureFormat.Depth);
@@ -131,41 +132,9 @@ public class ReEntryEffect : MonoBehaviour
         _airstreamCam.RenderWithShader(Shader.Find("Hidden/DepthOnly"), "RenderType=DepthOnly");
         _mat.SetMatrix("_AirstreamVP", _airstreamCam.projectionMatrix * _airstreamCam.worldToCameraMatrix);
         SetMat();
-        //UpdateOcclusion();
 
     }
-    public OcclusionSampler occlusionSampler;
-    private float lastOcclusionCheck = 0f;
-    private float occlusionFade = 1f;
     
-    private void UpdateOcclusion()
-    {
-        if (occlusionSampler == null) return;
-
-        occlusionSampler.Update();
-
-        if (occlusionSampler.Ready)
-        {
-            float occlusion = occlusionSampler.Occlusion;
-            Debug.Log($"{gameObject.name} Occlusion: {occlusion:F2}");
-
-            if (occlusion > 0.7f)  // 遮挡 >70% → 不渲染
-            {
-                _rend.enabled = false;
-                occlusionFade = 0f;
-            }
-            else
-            {
-                _rend.enabled = true;
-                // 平滑淡出
-                occlusionFade = Mathf.Lerp(occlusionFade, 1f - occlusion, Time.deltaTime * 5f);
-                _mat.SetFloat("_OpacityMultiplier", opacityMultiplier * occlusionFade);
-                _mat.SetFloat("_TrailAlphaMultiplier", trailAlphaMultiplier * occlusionFade);
-            }
-
-            occlusionSampler.Ready = false;
-        }
-    }
     
     void OnDestroy()
     {
@@ -222,7 +191,7 @@ public class ReEntryEffect : MonoBehaviour
 
     private void UpdateExtendedBounds()
     {
-        if (_rend == null) return;
+        if (effectRenderer == null) return;
 
         // 1. 估算尾迹实际长度
         float estimatedTrailLength = entryStrength * 0.02f; 
@@ -241,7 +210,7 @@ public class ReEntryEffect : MonoBehaviour
         Bounds extended = new Bounds(center, new Vector3(finalRadius * 2f,finalRadius * 2f,finalRadius * 2f));
 
         // 5. 应用
-        _rend.bounds = extended;
+        effectRenderer.bounds = extended;
 
         // 可选：同步 mesh.bounds
         if (mf != null && mf.mesh != null)

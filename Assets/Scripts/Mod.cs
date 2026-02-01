@@ -72,6 +72,29 @@ namespace Assets.Scripts
         private void RegisterCommand()
         {
         }
+        #region LOG
+        public static void Log(object message)
+        {
+            if (ModSettings.Instance.ShowDevLog)
+            {
+                Debug.unityLogger.Log(message);
+            }
+        }
+        public static void Log(string format, params object[] args)
+        {
+            if (ModSettings.Instance.ShowDevLog)
+            {
+                Debug.unityLogger.LogFormat(LogType.Log, format, args);
+            }
+        }
+        public static void Log(UnityEngine.Object context, string format, params object[] args)
+        {
+            if (ModSettings.Instance.ShowDevLog)
+            {
+                Debug.unityLogger.LogFormat(LogType.Log, context, format, args);
+            }
+        }
+        #endregion
 
     }
 }
