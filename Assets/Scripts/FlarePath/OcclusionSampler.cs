@@ -6,7 +6,7 @@ namespace Assets.Scripts.FlarePath
     public class OcclusionSampler
     {
         private Vector3[] _samplePoints;
-        private Vector3 _localDirection;
+        private Vector3 _worldVelocityDirection; 
         private int _numOccluded = 0;
         private int _numSampled = 0;
         private int _currentSampleIndex = 0;
@@ -49,10 +49,10 @@ namespace Assets.Scripts.FlarePath
             if (!_ignoreList.Contains(go)) _ignoreList.Add(go);
         }
 
-        // 设置检测方向
-        public void SetDirection(Vector3 localDirection)
+        // 设置检测方向（世界坐标方向）
+        public void SetDirection(Vector3 worldDirection)
         {
-            _localDirection = localDirection.normalized;
+            _worldVelocityDirection = worldDirection.normalized;
         }
 
         public void Update()
@@ -61,7 +61,6 @@ namespace Assets.Scripts.FlarePath
             {
                 // 清空上一帧的射线调试数据
                 _currentFrameRays.Clear();
-
                 if (_currentSampleIndex < _samplePoints.Length)
                 {
                     SamplePoint(_samplePoints[_currentSampleIndex]);
@@ -82,6 +81,7 @@ namespace Assets.Scripts.FlarePath
         // 生成均匀分布的表面采样点
         private Vector3[] GenerateUniformSurfaceSamples(MeshFilter meshFilter, int numSamples)
         {
+            
             List<Vector3> samples = new List<Vector3>();
         
             if (meshFilter == null || meshFilter.sharedMesh == null)
@@ -149,9 +149,20 @@ namespace Assets.Scripts.FlarePath
                 Vector3 v0 = vertices[triangles[tri]];
                 Vector3 v1 = vertices[triangles[tri + 1]];
                 Vector3 v2 = vertices[triangles[tri + 2]];
+                Vector3 cross = Vector3.Cross(v1 - v0, v2 - v0);
+                Vector3 normal;
+
+                if (cross.sqrMagnitude > 0.000001f)  // 很小的阈值
+                {
+                    normal = cross.normalized;
+                }
+                else
+                {
+                    normal = Vector3.forward;          
+                    Mod.Log("OcclusionSampler.GenerateUniform SufaceSamples:Degenerate triangle detected, using fallback normal");
+                }
         
-                // 三角面法线
-                Vector3 normal = Vector3.Cross(v1 - v0, v2 - v0).normalized;
+                
                 if (normals.Length > triangles[tri]) normal = normals[triangles[tri]]; // 用顶点法线更好
         
                 for (int s = 0; s < sampleCount; s++)
@@ -306,12 +317,25 @@ namespace Assets.Scripts.FlarePath
         private void SamplePoint(Vector3 localPos)
         {
             Vector3 worldPos = _transform.TransformPoint(localPos);
-            Vector3 worldDir = _transform.TransformDirection(_localDirection);
+            Vector3 worldDir=_worldVelocityDirection;
+            // 添加零向量检查
+            if (worldDir == Vector3.zero)
+            {
+               Mod.Log("OcclusionSampler: Zero direction vector detected!");
+                worldDir = Vector3.forward; // 使用默认方向
+            }
 
+            // 如果起始点和结束点相同，也可能是问题
+            Vector3 rayEnd = worldPos + worldDir * MaxDistance;
+            if (Vector3.Distance(worldPos, rayEnd) < 0.001f)
+            {
+                Mod.Log("OcclusionSampler: Invalid ray length!");
+                return;
+            }
+            
             Ray ray = new Ray(worldPos, worldDir);
             float rayDistance = MaxDistance;
             Color debugColor = Color.green;
-            Vector3 rayEnd = worldPos + worldDir * MaxDistance;
 
             // 构建忽略层掩码
             int layerMask = -1; // 所有层
@@ -376,55 +400,91 @@ namespace Assets.Scripts.FlarePath
         }
 
         // 绘制调试线条
+        private bool _canDrawDebug = true;
         public void DrawDebugRays()
         {
-           
+            if (!DebugModeEnabled || !_canDrawDebug) return;
 
-            // 清除旧的调试线条容器
-            ClearDebugLines();
-            
-            _debugLineContainer = new GameObject("OcclusionDebugLines");
-            _debugLineContainer.transform.SetParent(_transform);
-
-            foreach (var rayInfo in _currentFrameRays)
+            try
             {
-                DrawDebugLine(rayInfo.start, rayInfo.end, rayInfo.color);
+                // 清除旧的调试线条容器
+                ClearDebugLines();
+        
+                _debugLineContainer = new GameObject("OcclusionDebugLines");
+                _debugLineContainer.transform.SetParent(_transform);
+
+                foreach (var rayInfo in _currentFrameRays)
+                {
+                    DrawDebugLine(rayInfo.start, rayInfo.end, rayInfo.color);
+                }
+            }
+            catch (System.Exception ex)
+            {
+                _canDrawDebug = false;
+                Mod.Log("OcclusionSampler DrawDebugRays error: " + ex.Message);
             }
         }
 
         // 绘制单条调试线的方法
         private void DrawDebugLine(Vector3 start, Vector3 end, Color color)
         {
-            GameObject lineObj = new GameObject("DebugRay");
-            lineObj.transform.SetParent(_debugLineContainer.transform);
+            // 添加安全检查
+            if (!_canDrawDebug) return;
     
-            LineRenderer lineRenderer = lineObj.AddComponent<LineRenderer>();
-            
-            // 初始化材质（如果还没有的话）
-            if (_lineMaterial == null)
+            // 检查起点和终点是否有效且不相同
+            if (Vector3.Distance(start, end) < 0.001f)
             {
-                Shader shader = Shader.Find("Unlit/Color");
-                if (shader != null)
-                {
-                    _lineMaterial = new Material(shader);
-                }
-                else
-                {
-                    _lineMaterial = new Material(Shader.Find("Standard"));
-                }
+                return; // 跳过绘制零长度线段
             }
-            
-            lineRenderer.material = _lineMaterial;
-            lineRenderer.startColor = color;
-            lineRenderer.endColor = color;
-            lineRenderer.startWidth = 0.02f;
-            lineRenderer.endWidth = 0.02f;
-            lineRenderer.positionCount = 2;
-            lineRenderer.SetPosition(0, start);
-            lineRenderer.SetPosition(1, end);
-            
-            // 自动销毁调试线条
-            Object.Destroy(lineObj, 0.1f);
+    
+            // 检查坐标是否有效（避免 NaN 或 Infinity）
+            if (float.IsNaN(start.x) || float.IsNaN(start.y) || float.IsNaN(start.z) ||
+                float.IsNaN(end.x) || float.IsNaN(end.y) || float.IsNaN(end.z) ||
+                float.IsInfinity(start.x) || float.IsInfinity(start.y) || float.IsInfinity(start.z) ||
+                float.IsInfinity(end.x) || float.IsInfinity(end.y) || float.IsInfinity(end.z))
+            {
+                return;
+            }
+
+            try
+            {
+                GameObject lineObj = new GameObject("DebugRay");
+                lineObj.transform.SetParent(_debugLineContainer.transform);
+
+                LineRenderer lineRenderer = lineObj.AddComponent<LineRenderer>();
+        
+                // 初始化材质（如果还没有的话）
+                if (_lineMaterial == null)
+                {
+                    Shader shader = Shader.Find("Unlit/Color");
+                    if (shader != null)
+                    {
+                        _lineMaterial = new Material(shader);
+                    }
+                    else
+                    {
+                        _lineMaterial = new Material(Shader.Find("Standard"));
+                    }
+                }
+        
+                lineRenderer.material = _lineMaterial;
+                lineRenderer.startColor = color;
+                lineRenderer.endColor = color;
+                lineRenderer.startWidth = 0.02f;
+                lineRenderer.endWidth = 0.02f;
+                lineRenderer.positionCount = 2;
+                lineRenderer.SetPosition(0, start);
+                lineRenderer.SetPosition(1, end);
+        
+                // 自动销毁调试线条
+                Object.Destroy(lineObj, 0.1f);
+            }
+            catch (System.Exception ex)
+            {
+                // 捕获任何可能的异常，避免影响主逻辑
+                _canDrawDebug = false; // 如果出错就禁用调试绘制
+                Mod.Log("OcclusionSampler DrawDebugLine error: " + ex.Message);
+            }
         }
     }
     public struct RayDebugInfo

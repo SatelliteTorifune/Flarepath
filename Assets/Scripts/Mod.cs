@@ -94,6 +94,15 @@ namespace Assets.Scripts
                 Debug.unityLogger.LogFormat(LogType.Log, context, format, args);
             }
         }
+
+        public static void LogError(string format, params object[] args)
+        {
+            if (ModSettings.Instance.ShowDevLog)
+            {
+                Debug.unityLogger.LogFormat(LogType.Log, format, args);
+                Debug.LogFormat(Environment.StackTrace);
+            }
+        }
         #endregion
 
     }

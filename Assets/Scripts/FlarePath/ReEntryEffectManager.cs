@@ -2,9 +2,11 @@ using System;
 using Assets.Scripts;
 using Assets.Scripts.FlarePath;
 using ModApi.Craft.Parts;
+using ModApi.GameLoop;
+using ModApi.GameLoop.Interfaces;
 using UnityEngine;
 
-public class ReEntryEffectManager:MonoBehaviour
+public class ReEntryEffectManager:MonoBehaviourBase,IFlightFixedUpdate
 {
         public ReEntryEffect Effect;
         public ParticleSystem ParticleSystem;
@@ -20,18 +22,16 @@ public class ReEntryEffectManager:MonoBehaviour
             minTemp = Effect.minTemp;
             ignitionTemp = Effect.ignitionTemp;
             maxTemp = Effect.maxTemp;
-            
-            
-
         }
 
         private void Start()
         {
-            return;
+            //return;
             //set up occlusion sampler
             if (part == null)
             {
                 Mod.Log("wocao part是null");
+                return;
             }
             try
             {
@@ -39,7 +39,16 @@ public class ReEntryEffectManager:MonoBehaviour
             }
             catch (Exception e)
             {
-                Mod.Log(Environment.StackTrace);
+                try
+                {
+                    Mod.Log("这他妈又是啥我日你妈");
+                    Mod.Log(Environment.StackTrace);
+                }
+                catch (Exception exception)
+                {
+                  
+                }
+                
             }
             
             if (_occlusionSampler==null)
@@ -49,20 +58,18 @@ public class ReEntryEffectManager:MonoBehaviour
             }
             _occlusionSampler.AddIgnore(this.gameObject);
             _occlusionSampler.AddIgnore(part.GameObject);
-            _occlusionSampler.DebugModeEnabled = false;
+            _occlusionSampler.DebugModeEnabled = true;
         }
 
-        public void Update()
+        void IFlightFixedUpdate.FlightFixedUpdate(in FlightFrameData frame)
         {
-            //Debug.LogFormat($"{part.Data.Name} is occluded by{Effect.occlusionSampler.Occlusion}");
-            
+            Mod.Log("FlightFixedUpdate");
+            OcclusionSamplerUpdate();
             ParticleEffectUpdate();
             ReEntryEffectUpdate();
-            return;
-            
-            OcclusionSamplerUpdate();
+            //
             if (_occlusionSampler.Occlusion<0.5f)
-            {
+            { 
                 Effect.effectRenderer.enabled = false;
                
             }
@@ -72,19 +79,51 @@ public class ReEntryEffectManager:MonoBehaviour
                 ParticleEffectUpdate();
                 ReEntryEffectUpdate();
             }
+        }
+
+        public void Update()
+        {
+            return;
+            //Debug.LogFormat($"{part.Data.Name} is occluded by{Effect.occlusionSampler.Occlusion}");
             
+            Mod.Log("Update0");
+            if (false)
+            {
+                ParticleEffectUpdate();
+                ReEntryEffectUpdate();
+                return;
+            }
+            ReEntryEffectUpdate();
+            Mod.Log("Update1");
+            return;
+            OcclusionSamplerUpdate();
+            if (_occlusionSampler.Occlusion<0.5f)
+            { 
+                Effect.effectRenderer.enabled = false;
+               
+            }
+            else
+            {
+                Effect.effectRenderer.enabled = true;
+                ParticleEffectUpdate();
+                ReEntryEffectUpdate();
+            }
+            Mod.Log("Update2");
             
         }
         private void OcclusionSamplerUpdate()
         {
+            
             if (_occlusionSampler.Ready)
             {
                 _occlusionSampler.Ready = false;
             }
-      
-            Vector3 localVelocityDir = this.gameObject.transform.InverseTransformDirection(-part.CraftScript.FlightData.SurfaceVelocity.normalized.ToVector3());
-            _occlusionSampler.SetDirection(localVelocityDir);
+            _occlusionSampler.SetDirection(part.CraftScript.FlightData.SurfaceVelocity.normalized.ToVector3());
             _occlusionSampler.Update();
+            if (_occlusionSampler != null && _occlusionSampler.DebugModeEnabled)
+            {
+                _occlusionSampler.DrawDebugRays();
+            }
         }
 
         private void ReEntryEffectUpdate()
@@ -122,7 +161,6 @@ public class ReEntryEffectManager:MonoBehaviour
             return strength;
         }
 
-       
-       
-        
+
+        public bool StartMethodCalled { get; set; }
 }

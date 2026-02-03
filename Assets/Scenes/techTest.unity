@@ -705,8 +705,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 69c71a0ea6224cefa92152d7f558b11a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  velocityDir: {x: 0, y: 0, z: -1}
-  sampleNumber: 9
+  velocityDir: {x: 0, y: 0, z: 1}
+  sampleNumber: 12
   DebugModeEnabled: 1
 --- !u!4 &1686034971 stripped
 Transform:
@@ -858,7 +858,11 @@ PrefabInstance:
     - target: {fileID: 2952153493951920289, guid: dd8535f31dd2aab47b6b38d277304c64, type: 3}
       propertyPath: m_Mesh
       value: 
-      objectReference: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+      objectReference: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
+    - target: {fileID: 5505601858776063142, guid: dd8535f31dd2aab47b6b38d277304c64, type: 3}
+      propertyPath: m_Enabled
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 5505601858776063142, guid: dd8535f31dd2aab47b6b38d277304c64, type: 3}
       propertyPath: velocityWorld.z
       value: 1
@@ -873,7 +877,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8629731326935664989, guid: dd8535f31dd2aab47b6b38d277304c64, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

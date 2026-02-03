@@ -12,9 +12,7 @@ public class testOcc : MonoBehaviour
     
     void Start()
     {
-        Bounds partBounds = this.gameObject.GetComponent<Renderer>().bounds;
-        
-        sampler = new OcclusionSampler(partBounds, sampleNumber, gameObject.transform);
+        sampler = new OcclusionSampler(gameObject.GetComponent<Renderer>().bounds, sampleNumber, gameObject.transform);
         //sampler=new OcclusionSampler(this.gameObject.GetComponent<MeshFilter>(),sampleNumber,this.gameObject.transform);
         sampler.AddIgnore(this.gameObject);
         sampler.DebugModeEnabled = DebugModeEnabled;
@@ -28,8 +26,9 @@ public class testOcc : MonoBehaviour
             sampler.Ready = false;
         }
       
-        Vector3 localVelocityDir = this.gameObject.transform.InverseTransformDirection(-velocityDir.normalized);
-        sampler.SetDirection(localVelocityDir);
+        //Vector3 localVelocityDir = this.gameObject.transform.InverseTransformDirection(velocityDir.normalized);
+        //sampler.SetDirection(localVelocityDir);
+        sampler.SetDirection(velocityDir.normalized);
         sampler.Update();
        
         if (DebugModeEnabled)

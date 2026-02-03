@@ -2,6 +2,8 @@ using System;
 using Assets.Scripts;
 using Assets.Scripts.Craft.Parts.Modifiers.Fuselage;
 using Assets.Scripts.FlarePath;
+using ModApi.GameLoop;
+using ModApi.GameLoop.Interfaces;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Serialization;
@@ -10,7 +12,7 @@ using UnityEngine.Serialization;
 /// 将速度、模型尺寸、Airstream阴影等信息传递给 AtmosphericReentry Shader。
 /// </summary>
 [RequireComponent(typeof(Renderer))]
-public class ReEntryEffect : MonoBehaviour
+public class ReEntryEffect : MonoBehaviour//MonoBehaviourBase,IFlightFixedUpdate
 {
     // ----- 可在 Inspector 调整的属性 -----
     [Header("动力学参数")] public float entryStrength = 2000f; // 由外部系统填入（如影响速度等）
@@ -217,6 +219,16 @@ public class ReEntryEffect : MonoBehaviour
         {
             mf.mesh.bounds = extended;
         }
+        
+    }
+
+    private ReEntryEffect()
+    {
+        
+    }
+
+    public void FlightFixedUpdate(in FlightFrameData frame)
+    {
         
     }
 }
