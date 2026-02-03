@@ -1,8 +1,5 @@
 ## 正在进行的项目
-### 你妈的Look rotation viewing vector is zero 是个什么几把玩意??
-> 这个东西疑似和unity的Update函数有关,我觉得是OcclusionSampler.Update把unity mono的那个Update搞坏了
 
-> 不是为什么我写在FlightFixedUpdate里面也不行啊
 ### OcclusionSampler的采样点分布算法修复
 > OcclusionSampler.GenerateUniformSurfaceSamples()
 
@@ -19,6 +16,10 @@
 
 ### 特定角度或者时间下效果消失
 ### OcclusionSampler速度矢量更新问题
+### 你妈的Look rotation viewing vector is zero 是个什么几把玩意??
+> 这个东西疑似和unity的Update函数有关,我觉得是OcclusionSampler.Update把unity mono的那个Update搞坏了
+
+> 不是为什么我写在FlightFixedUpdate里面也不行啊
 
 ## Feature
 

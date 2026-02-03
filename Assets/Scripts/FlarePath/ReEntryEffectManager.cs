@@ -63,54 +63,22 @@ public class ReEntryEffectManager:MonoBehaviourBase,IFlightFixedUpdate
 
         void IFlightFixedUpdate.FlightFixedUpdate(in FlightFrameData frame)
         {
-            Mod.Log("FlightFixedUpdate");
             OcclusionSamplerUpdate();
             ParticleEffectUpdate();
             ReEntryEffectUpdate();
-            //
+            //Effect.entryStrength*=_occlusionSampler.Occlusion;
+            return;
             if (_occlusionSampler.Occlusion<0.5f)
             { 
                 Effect.effectRenderer.enabled = false;
-               
             }
             else
             {
                 Effect.effectRenderer.enabled = true;
-                ParticleEffectUpdate();
-                ReEntryEffectUpdate();
             }
         }
 
-        public void Update()
-        {
-            return;
-            //Debug.LogFormat($"{part.Data.Name} is occluded by{Effect.occlusionSampler.Occlusion}");
-            
-            Mod.Log("Update0");
-            if (false)
-            {
-                ParticleEffectUpdate();
-                ReEntryEffectUpdate();
-                return;
-            }
-            ReEntryEffectUpdate();
-            Mod.Log("Update1");
-            return;
-            OcclusionSamplerUpdate();
-            if (_occlusionSampler.Occlusion<0.5f)
-            { 
-                Effect.effectRenderer.enabled = false;
-               
-            }
-            else
-            {
-                Effect.effectRenderer.enabled = true;
-                ParticleEffectUpdate();
-                ReEntryEffectUpdate();
-            }
-            Mod.Log("Update2");
-            
-        }
+    
         private void OcclusionSamplerUpdate()
         {
             
