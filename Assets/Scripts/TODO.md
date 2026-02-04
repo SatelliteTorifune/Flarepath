@@ -21,12 +21,14 @@
 
 > 不是为什么我写在FlightFixedUpdate里面也不行啊
 
+> 在给OcclusionSampler的debug的线段创建啥的加入了一些防止空值的判断后解决
+
 ## Feature
 
 ### UI和配置文件创建
 ### 性能优化
 ### 参数调整自动化
-> 先把你那逼 ReEntryEffectManager.GetEntryStrength()修了吧
+> 先把你那逼 ReEntryEffectManager.GetEntryStrength()写了吧
 ### 自带参数调整
 ### 增加粒子效果以及对应的config参数
 

@@ -21,14 +21,16 @@ namespace Assets.Scripts.FlarePath
 
         // 射线调试信息结构
         
-
-        public float MaxDistance { get; set; } = 100f;
+        
+        //得加进config
+        public float MaxDistance { get; set; } = 50f;
         public float Occlusion { get; private set; } = 0f;
         public bool Ready { get; set; }
         public bool DebugModeEnabled { get; set; } = false;
-        public float SampleOffsetDistance { get; set; } = 0.5f; // 采样点距离Mesh的偏移距离
+        // 采样点距离Mesh的偏移距离
+        public float SampleOffsetDistance { get; set; } = 0;
 
-        // 基于Mesh的构造函数
+        // 基于Mesh的构造函数,有bug,慎用
         public OcclusionSampler(MeshFilter meshFilter, int numSamples, Transform transform)
         {
             _transform = transform;
@@ -36,7 +38,8 @@ namespace Assets.Scripts.FlarePath
             MaxDistance = 100f;
         }
 
-        // 基于Bounds的构造函数
+        /// 基于Bounds的构造函数
+        /// 考虑到第一个构造函数有他妈诡异的问题,还是用这个把
         public OcclusionSampler(Bounds bounds, int numSamples, Transform transform)
         {
             _transform = transform;
@@ -167,23 +170,28 @@ namespace Assets.Scripts.FlarePath
         
                 for (int s = 0; s < sampleCount; s++)
                 {
-                    // 重心坐标随机采样（均匀分布在三角面内）
-                    float r1 = Random.value;
-                    float r2 = Random.value;
-                    if (r1 + r2 > 1f)
-                    {
-                        r1 = 1f - r1;
-                        r2 = 1f - r2;
-                    }
-                    float u = r1;
-                    float v = r2;
+                    // 推荐使用这个版本
+                    float r = Random.value;
+                    float sqrt_r = Mathf.Sqrt(r);
+                    float t = Random.value;
+
+                    float u = 1f - sqrt_r;
+                    float v = t * sqrt_r;
                     float w = 1f - u - v;
-        
+
+                    // 或者用写法1
+                    // float u = Random.value;
+                    // float v = Random.value * (1f - u);
+                    // float w = 1f - u - v;
+
                     Vector3 baryPoint = u * v0 + v * v1 + w * v2;
-        
-                    // 沿法线向外偏移（避免自撞）
-                    Vector3 sampleLocal = baryPoint + normal * SampleOffsetDistance;
-        
+                    Vector3 worldPosOnSurface  = _transform.TransformPoint(baryPoint);
+                    Vector3 worldNormal        = _transform.TransformDirection(normal).normalized;
+                    const float WORLD_OFFSET = 0.03f;
+                    Vector3 sampleWorld = worldPosOnSurface + worldNormal * WORLD_OFFSET;
+                    // 偏移（注意：如果模型有很尖锐的边或法线不连续，这里还是可能轻微出界）
+                    Vector3 sampleLocal = _transform.InverseTransformPoint(sampleWorld);;// + normal * SampleOffsetDistance;
+
                     samples.Add(sampleLocal);
                 }
             }

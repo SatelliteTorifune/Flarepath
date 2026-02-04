@@ -128,7 +128,5 @@ public class ReEntryEffectManager:MonoBehaviourBase,IFlightFixedUpdate
             float strength = Mathf.Lerp(300f, 3000f, curve);
             return strength;
         }
-
-
-        public bool StartMethodCalled { get; set; }
+        
 }

@@ -12,8 +12,8 @@ public class testOcc : MonoBehaviour
     
     void Start()
     {
-        sampler = new OcclusionSampler(gameObject.GetComponent<Renderer>().bounds, sampleNumber, gameObject.transform);
-        //sampler=new OcclusionSampler(this.gameObject.GetComponent<MeshFilter>(),sampleNumber,this.gameObject.transform);
+        //sampler = new OcclusionSampler(gameObject.GetComponent<Renderer>().bounds, sampleNumber, gameObject.transform);
+        sampler=new OcclusionSampler(this.gameObject.GetComponent<MeshFilter>(),sampleNumber,this.gameObject.transform);
         sampler.AddIgnore(this.gameObject);
         sampler.DebugModeEnabled = DebugModeEnabled;
     }

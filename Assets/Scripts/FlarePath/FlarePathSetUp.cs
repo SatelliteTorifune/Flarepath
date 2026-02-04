@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Assets.Scripts
 {
     
-    public partial class Mod : ModApi.Mods.GameMod
+    public partial class Mod
     {
         
         private void PartSetUp(IPartScript partScript)
