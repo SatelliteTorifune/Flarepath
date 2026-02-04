@@ -125,16 +125,13 @@ GS_INPUT eff_gs_vert ( VS_INPUT IN )
     return OUT;
 }
 
-//-----------------------------------------------------------
 // Geometry Shader
-// -----------------------------------------------------------
-// 为了兼容所有平台（尤其是 OpenGL ES），不再对
-// float3/float4 使用写索引，而是手写 x/y/z 分量。
+
 // maxvertexcount 限制：GS_DATA有25个标量组件，D3D11限制是1024
 // 1024 / 25 = 40.96，所以最多40个顶点
 // 每个三角形边最多生成：主层10个顶点 + Wrap层10个顶点 = 20个顶点
 //
-[maxvertexcount(40)]
+[maxvertexcount(20)]
 void eff_gs_geom ( triangle GS_INPUT vertex[3],
                   inout TriangleStream<GS_DATA> triStream )
 {
@@ -574,7 +571,7 @@ half4 eff_gs_frag ( GS_DATA IN ) : SV_Target
 {
     float4 col = IN.color;
 
-    // 只渲染 layer >= 0 的几何体（负值表示 “已被裁掉”）
+    // 只渲染 layer >= 0 的几何体（负值表示 "已被裁掉"）
     clip(IN.layer >= 0 ? 1.0 : -1.0);
 
     // ---------- 基本参数 ----------
@@ -591,6 +588,51 @@ half4 eff_gs_frag ( GS_DATA IN ) : SV_Target
     float trailPosScalar1 = 0.2;
     float trailPosScalar = lerp(trailPosScalar0, trailPosScalar1, IN.layer);
     float invTrailPosScalar = 1.0 - trailPosScalar;
+
+    // ========== 根据 EntryStrength 和 trailPos 调整颜色 ==========
+    // 头部颜色：根据 EntryStrength 控制温度颜色
+    float temperatureFactor = saturate(_EntryStrength / 8000.0); // 假设 8000 是最高强度
+    
+    // 颜色渐变：白 => 红 => 橙 => 黄
+    float3 hotColors[4] = {
+        float3(1.0, 1.0, 1.0),   // 白色 (高温)
+        float3(1.0, 0.2, 0.2),   // 红色
+        float3(1.0, 0.6, 0.0),   // 橙色
+        float3(1.0, 1.0, 0.0)    // 黄色
+    };
+    
+    // 根据温度因子选择颜色
+    float colorIndex = temperatureFactor * 3.0;
+    int index1 = (int)floor(colorIndex);
+    int index2 = min(index1 + 1, 3);
+    float blendFactor = frac(colorIndex);
+    
+    float3 headColor = lerp(hotColors[index1], hotColors[index2], blendFactor);
+    
+    // 蓝紫色（背风面尾部）
+    float3 coolColor = float3(0.4, 0.2, 0.8); // 紫色
+    float3 coldColor = float3(0.2, 0.4, 1.0); // 蓝色
+    
+    // 根据 trailPos 控制从头部高温到尾部低温的过渡
+    float headToTail = trailPos.y; // 0=头部, 1=尾部
+    
+    // 在尾部区域添加蓝紫色
+    float coolIntensity = smoothstep(0.7, 1.0, headToTail);
+    float3 tailCoolColor = lerp(coolColor, coldColor, saturate((headToTail - 0.7) * 3.33)); // 0.7-1.0 映射到 0-1
+    
+    // 主要颜色混合：头部高温颜色过渡到尾部冷色
+    float3 finalColor;
+    if (headToTail < 0.7) {
+        // 头部和中部：高温颜色
+        finalColor = lerp(headColor, col.rgb, 0.3); // 保留一些原始颜色
+    } else {
+        // 尾部：冷色调
+        float coolBlend = (headToTail - 0.7) * 3.33; // 0.7-1.0 映射到 0-1
+        finalColor = lerp(col.rgb, tailCoolColor, coolBlend * _BlueMultiplier);
+    }
+    
+    col.rgb = finalColor;
+    // =================================================
 
     // ---------- UV 计算 (包含滚动、缩放) ----------
     float2 scrollScale = float2( lerp(0.6, 0.1, IN.layer),
@@ -637,3 +679,6 @@ half4 eff_gs_frag ( GS_DATA IN ) : SV_Target
 
     return col;
 }
+
+
+
