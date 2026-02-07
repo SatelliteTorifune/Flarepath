@@ -18,8 +18,16 @@ public class ReEntryEffectPartManager:MonoBehaviourBase,IFlightUpdate
             {
                 return;
             }
-            
-            if (part.BodyScript.ReEntryEffectStrength<=0.001)
+
+            if (part==null)
+            {
+               this.gameObject.SetActive(false); 
+               return;
+            }
+            this.gameObject.transform.position=part.GameObject.transform.position;
+            this.gameObject.transform.rotation=part.GameObject.transform.rotation;
+            this.gameObject.transform.localScale=part.GameObject.transform.localScale;
+            if (part.BodyScript.ReEntryEffectStrength<=0.001||part.CraftScript.FlightData.Grounded||part.CraftScript.FlightData.MachNumber<=0.1)
             {
                 if (Effect.effectRenderer.enabled)
                 {
@@ -35,14 +43,12 @@ public class ReEntryEffectPartManager:MonoBehaviourBase,IFlightUpdate
                 ParticleEffectUpdate();
                 ReEntryEffectUpdate();
             }
+            
         }
 
 
         private void ReEntryEffectUpdate()
         {
-            this.gameObject.transform.position=part.GameObject.transform.position;
-            this.gameObject.transform.rotation=part.GameObject.transform.rotation;
-            this.gameObject.transform.localScale=part.GameObject.transform.localScale;
             Effect.velocityWorld = part.CraftScript.FlightData.SurfaceVelocity.ToVector3();
             Effect.lengthMultiplier = 5;
             Effect.entryStrength = Math.Max(Math.Min(3000,part.BodyScript.ReEntryEffectStrength*3000f),3);;
@@ -53,6 +59,7 @@ public class ReEntryEffectPartManager:MonoBehaviourBase,IFlightUpdate
         {
             
         }
+        
         
         
 }

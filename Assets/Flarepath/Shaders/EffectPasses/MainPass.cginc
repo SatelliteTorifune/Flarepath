@@ -131,11 +131,10 @@ GS_INPUT eff_gs_vert ( VS_INPUT IN )
 // 1024 / 25 = 40.96，所以最多40个顶点
 // 每个三角形边最多生成：主层10个顶点 + Wrap层10个顶点 = 20个顶点
 //
-[maxvertexcount(20)]
+[maxvertexcount(30)]
 void eff_gs_geom ( triangle GS_INPUT vertex[3],
                   inout TriangleStream<GS_DATA> triStream )
 {
-    // ---------- Early‑out ----------
     if (_EntryStrength < 50) return;
 
     // ---------- 基础值 ----------

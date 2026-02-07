@@ -69,7 +69,7 @@ GS_INPUT bs_gs_vert(VS_INPUT IN)
 // Geometry Shader - 向前复制几何体产生蓝色等离子层
 // 根据论文：在物体前方复制几何体，只有与速度向量角度非常接近的面才产生
 // ---------------------------------------------------
-[maxvertexcount(24)]
+[maxvertexcount(10)]
 void bs_gs_geom(triangle GS_INPUT vertex[3], inout TriangleStream<GS_DATA> triStream)
 {
     // 仅在强度足够且未手动禁用时绘制

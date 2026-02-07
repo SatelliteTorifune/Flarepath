@@ -1,10 +1,13 @@
 ## 正在进行的项目
 
-### 目前遮掩计算的问题暂时不打算写了
->暂时用你游part自带的那part.BodyScript.ReEntryEffectStrength凑合用一下吧
+### 遮罩优化?
 
+> 直接用这玩意(BodyScript.ReEntryEffectStrength)解决不了问题,考虑到你游狗屎一样,聊胜于无的遮挡计算,要解决这个问题似乎只有两条路
 
-### 效果prefab和craft没对齐
+>1.优化shader面数,即便多个(50?100?)个效果instance的性能消耗也不会太大
+
+>2.给jundroo擦屁股,把他们没做的遮挡功能给做了 
+
 
 ### 得想出个法子解决遮挡计算的问题
 > 目前在偷ksp的锥体遮挡系统,不用FAR那种体素是因为JNO的craft的p数太几把多了,退一步讲体素法吃性能也难得写,所以用这个玩意凑合用
@@ -40,6 +43,9 @@
 >这个玩意会严重影响性能,直接给我吃了50多fps,必须修
 
 >问题在ReEntryEffect里面,velocityWorld.normalized 在 velocityWorld 为零时会变成无效值,Quaternion.LookRotation()调用这个Vector3的时候就会Look rotation viewing vector is zero
+> 
+### 效果prefab和craft没对齐
+> Effect更新要写在IFlightUpdate里面,不能写在IFlightFixedUpdate里面
 
 ## Feature
 
