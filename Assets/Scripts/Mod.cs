@@ -42,7 +42,7 @@ namespace Assets.Scripts
         public override void OnModLoaded()
         {
             base.OnModLoaded();
-            var harmony = new Harmony("com.SatelliteTorifune.BetterReentry");
+            var harmony = new Harmony("com.SatelliteTorifune.FlarePath");
             harmony.PatchAll();
             Game.Instance.SceneManager.SceneLoaded += OnSceneLoaded;
             RegisterCommand();
@@ -57,16 +57,30 @@ namespace Assets.Scripts
                 return;
             }
 
-            AddEffectToCraft(ModApi.Common.Game.Instance.FlightScene.CraftNode.CraftScript);
+            ModApi.Common.Game.Instance.FlightScene.CraftChanged += OnCraftChanged;
+            AddEffectToCraftParts(ModApi.Common.Game.Instance.FlightScene.CraftNode.CraftScript);
             
         }
 
-        public void AddEffectToCraft(ICraftScript craft)
+        public void AddEffectToCraftParts(ICraftScript craft)
         {
             foreach (var pd in craft.Data.Assembly.Parts)
             {
                 PartSetUp(pd.PartScript);
             }
+        }
+
+        public void AddEffectToCraftBodies(ICraftScript craft)
+        {
+            foreach (var bodyData in craft.Data.Assembly.Bodies)
+            {
+                BodySetUp(bodyData.BodyScript);
+            }
+        }
+
+        private void OnCraftChanged(ICraftNode craft)
+        {
+            AddEffectToCraftParts(craft.CraftScript);
         }
 
         private void RegisterCommand()
