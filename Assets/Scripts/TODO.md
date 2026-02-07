@@ -1,7 +1,8 @@
 ## 正在进行的项目
 
-### 目前遮掩计算的问题暂时不打算写了,暂时用你游part自带的那part.BodyScript.ReEntryEffectStrength凑合用一下吧,主要是现在又出现了Look rotation viewing vector is zero,得找然后修
->这个玩意会严重影响性能,直接给我吃了50多fps,必须修
+### 目前遮掩计算的问题暂时不打算写了
+>暂时用你游part自带的那part.BodyScript.ReEntryEffectStrength凑合用一下吧
+
 
 ### 效果prefab和craft没对齐
 
@@ -33,6 +34,12 @@
 > 在给OcclusionSampler的debug的线段创建啥的加入了一些防止空值的判断后解决
 
 >据说是rigidBody在速度为0是会出现这种问题
+ 
+> 主要是现在又出现了Look rotation viewing vector is zero,得找然后修
+
+>这个玩意会严重影响性能,直接给我吃了50多fps,必须修
+
+>问题在ReEntryEffect里面,velocityWorld.normalized 在 velocityWorld 为零时会变成无效值,Quaternion.LookRotation()调用这个Vector3的时候就会Look rotation viewing vector is zero
 
 ## Feature
 

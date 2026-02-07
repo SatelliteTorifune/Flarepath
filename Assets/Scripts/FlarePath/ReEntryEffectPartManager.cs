@@ -10,32 +10,15 @@ public class ReEntryEffectPartManager:MonoBehaviourBase,IFlightUpdate
         public ReEntryEffect Effect;
         public ParticleSystem ParticleSystem;
         public IPartScript part;
-        private float minTemp;
-        private float ignitionTemp;
-        private float maxTemp;
         
-    
-        private void Awake()
+        
+        void IFlightUpdate.FlightUpdate(in FlightFrameData frame)
         {
-            minTemp = Effect.minTemp;
-            ignitionTemp = Effect.ignitionTemp;
-            maxTemp = Effect.maxTemp;
-        }
-
-        private void Start()
-        {
-            //return;
-            //set up occlusion sampler
-            if (part == null)
+            if (frame.IsWarping||frame.DeltaTimeWorld == 0.0)
             {
-                Mod.Log("wocao part是null");
                 return;
             }
             
-        }
-        
-        public void FlightUpdate(in FlightFrameData frame)
-        {
             if (part.BodyScript.ReEntryEffectStrength<=0.001)
             {
                 if (Effect.effectRenderer.enabled)
@@ -62,7 +45,7 @@ public class ReEntryEffectPartManager:MonoBehaviourBase,IFlightUpdate
             this.gameObject.transform.localScale=part.GameObject.transform.localScale;
             Effect.velocityWorld = part.CraftScript.FlightData.SurfaceVelocity.ToVector3();
             Effect.lengthMultiplier = 5;
-            Effect.entryStrength = GetEntryStrength(part.BodyScript.ReEntryEffectStrength);
+            Effect.entryStrength = Math.Max(Math.Min(3000,part.BodyScript.ReEntryEffectStrength*3000f),3);;
             
         }
 
@@ -70,32 +53,6 @@ public class ReEntryEffectPartManager:MonoBehaviourBase,IFlightUpdate
         {
             
         }
-    
-    
-        private float GetEntryStrength(float Strength)
-        {
-            return Math.Max(Math.Min(3000,Strength*3000f),3);
-            
-            float temp = part.Temperature;
-            if (temp < ignitionTemp)
-            {
-                return 300f;
-            }
-            /*
-            this._plasmaTemperature = Mathf.Sqrt(this.part.BodyScript.FluidDensity) * Mathf.Clamp01(Mathf.Clamp(50000f * part.BodyScript., 1f, 2000f) * 0.01f);
-            
-            float reentryEffectStrength = Mathf.Clamp01((float) (((double) (0.75f * temp + 0.25f * this._plasmaTemperature) - 670.0) / 1070.0));
-
-            */
-            
-            
-            // 归一化
-            float t = Mathf.Clamp((temp - ignitionTemp) / (maxTemp - ignitionTemp), 0f, 1f);
-
-            // 用 2.5 次方曲线（高温爆发感强）
-            float curve = Mathf.Pow(t, 2.5f);
-            float strength = Mathf.Lerp(300f, 3000f, curve);
-            return strength;
-        }
+        
         
 }
