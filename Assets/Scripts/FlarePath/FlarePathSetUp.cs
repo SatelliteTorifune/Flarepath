@@ -12,6 +12,16 @@ namespace Assets.Scripts
         
         private void PartSetUp(IPartScript partScript)
         {
+            if (partScript?.GameObject == null)
+            {
+                return;
+            }
+
+            if (!_initializedPartIds.Add(partScript.GameObject.GetInstanceID()))
+            {
+                return;
+            }
+
             var partMesh = partScript.GameObject.GetComponentInChildren<MeshFilter>().mesh;
             if (partMesh == null)
             {return;}
@@ -26,6 +36,16 @@ namespace Assets.Scripts
 
         private void BodySetUp(IBodyScript bodyScript)
         {
+            if (bodyScript?.GameObject == null)
+            {
+                return;
+            }
+
+            if (!_initializedBodyIds.Add(bodyScript.GameObject.GetInstanceID()))
+            {
+                return;
+            }
+
             var bodyMesh = bodyScript.GameObject.GetComponentInChildren<MeshFilter>().mesh;
             if (bodyScript.GameObject.GetComponent<Collider>()==null)
             {

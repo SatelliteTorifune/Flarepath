@@ -25,6 +25,9 @@ namespace Assets.Scripts
     /// </summary>
     public partial class Mod : ModApi.Mods.GameMod
     {
+        private readonly HashSet<int> _initializedPartIds = new HashSet<int>();
+        private readonly HashSet<int> _initializedBodyIds = new HashSet<int>();
+
         /// <summary>
         /// Prevents a default instance of the <see cref="Mod"/> class from being created.
         /// </summary>
@@ -57,6 +60,8 @@ namespace Assets.Scripts
                 return;
             }
 
+            _initializedPartIds.Clear();
+            _initializedBodyIds.Clear();
             ModApi.Common.Game.Instance.FlightScene.CraftChanged += OnCraftChanged;
             AddEffectToCraftParts(ModApi.Common.Game.Instance.FlightScene.CraftNode.CraftScript);
             

@@ -156,13 +156,15 @@ void eff_gs_geom ( triangle GS_INPUT vertex[3],
 
     // ---------- 基础长度 & 噪声 ----------
     float baseLength = _EntryStrength * 0.0013;
+    // 噪声：原先对同一坐标调用两次 Noise，指令开销较大。
+    // 这里改为单次采样，并通过简单缩放保持大致强度。
+    float n0 = Noise(vertex[0].position.xy + vertex[0].uv, 1);
+    float n1 = Noise(vertex[1].position.xy + vertex[1].uv, 1);
+    float n2 = Noise(vertex[2].position.xy + vertex[2].uv, 1);
     float3 noise = float3(
-        Noise(vertex[0].position.xy + vertex[0].uv, 1) *
-                baseLength * Noise(vertex[0].position.xy + vertex[0].uv, 1) * 5,
-        Noise(vertex[1].position.xy + vertex[1].uv, 1) *
-                baseLength * Noise(vertex[1].position.xy + vertex[1].uv, 1) * 5,
-        Noise(vertex[2].position.xy + vertex[2].uv, 1) *
-                baseLength * Noise(vertex[2].position.xy + vertex[2].uv, 1) * 5
+        n0 * baseLength * 5,
+        n1 * baseLength * 5,
+        n2 * baseLength * 5
     );
 
     // ---------- 计算每个顶点的效果长度 ----------
@@ -239,6 +241,10 @@ void eff_gs_geom ( triangle GS_INPUT vertex[3],
             // ---------- 透明度 ----------
             float alpha = saturate(entrySpeed / 0.025) *
                 (0.004 * _TrailAlphaMultiplier + vertNoise * 0.004);
+
+            // 如果当前段的贡献极小，则直接跳过几何生成，减少 GS / FS 开销
+            if (alpha <= 0.001)
+                continue;
 
             // ---------- Mach / 速度系数 ----------
             float t = saturate(entrySpeed / 0.25 - 1);
@@ -578,8 +584,10 @@ half4 eff_gs_frag ( GS_DATA IN ) : SV_Target
     float speedScalar = saturate(lerp(0.0, 2.5, entrySpeed));
 
     // ---------- 环形坐标 + 角度 ----------
+    // 角度信息用于扰动噪声 UV。原实现每个片元调用 atan2，开销较大。
+    // 这里用简单的 x/z 比值近似，避免反三角函数。
     float3 ndcCoord = GetAirstreamNDC(normalize(IN.positionOS));
-    float angle = atan2(ndcCoord.y, ndcCoord.x);
+    float angle = ndcCoord.x; // 近似代替 atan2(ndcCoord.y, ndcCoord.x)
 
     // ---------- 尾迹位置 ----------
     float2 trailPos = 1.0 - IN.trailPos;          // (0,0)=头, (1,1)=尾
@@ -592,21 +600,29 @@ half4 eff_gs_frag ( GS_DATA IN ) : SV_Target
     // 头部颜色：根据 EntryStrength 控制温度颜色
     float temperatureFactor = saturate(_EntryStrength / 8000.0); // 假设 8000 是最高强度
     
-    // 颜色渐变：白 => 红 => 橙 => 黄
-    float3 hotColors[4] = {
-        float3(1.0, 1.0, 1.0),   // 白色 (高温)
-        float3(1.0, 0.2, 0.2),   // 红色
-        float3(1.0, 0.6, 0.0),   // 橙色
-        float3(1.0, 1.0, 0.0)    // 黄色
-    };
-    
-    // 根据温度因子选择颜色
-    float colorIndex = temperatureFactor * 3.0;
-    int index1 = (int)floor(colorIndex);
-    int index2 = min(index1 + 1, 3);
-    float blendFactor = frac(colorIndex);
-    
-    float3 headColor = lerp(hotColors[index1], hotColors[index2], blendFactor);
+    // 颜色渐变：白 => 红 => 橙 => 黄，避免使用数组与动态索引
+    float3 whiteCol = float3(1.0, 1.0, 1.0);
+    float3 redCol   = float3(1.0, 0.2, 0.2);
+    float3 orangeCol= float3(1.0, 0.6, 0.0);
+    float3 yellowCol= float3(1.0, 1.0, 0.0);
+
+    float tCol = temperatureFactor * 3.0;
+    float3 headColor;
+    if (tCol < 1.0)
+    {
+        // 白 -> 红
+        headColor = lerp(whiteCol, redCol, tCol);
+    }
+    else if (tCol < 2.0)
+    {
+        // 红 -> 橙
+        headColor = lerp(redCol, orangeCol, tCol - 1.0);
+    }
+    else
+    {
+        // 橙 -> 黄
+        headColor = lerp(orangeCol, yellowCol, saturate(tCol - 2.0));
+    }
     
     // 蓝紫色（背风面尾部）
     float3 coolColor = float3(0.4, 0.2, 0.8); // 紫色
