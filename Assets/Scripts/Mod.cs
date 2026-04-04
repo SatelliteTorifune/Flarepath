@@ -45,8 +45,7 @@ namespace Assets.Scripts
         public override void OnModLoaded()
         {
             base.OnModLoaded();
-            var harmony = new Harmony("com.SatelliteTorifune.FlarePath");
-            harmony.PatchAll();
+            //new Harmony("com.SatelliteTorifune.FlarePath").PatchAll();
             Game.Instance.SceneManager.SceneLoaded += OnSceneLoaded;
             RegisterCommand();
             

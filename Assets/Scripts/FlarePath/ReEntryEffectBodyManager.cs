@@ -47,9 +47,10 @@ public class ReEntryEffectBodyManager:MonoBehaviourBase,IFlightFixedUpdate
 
         private void ReEntryEffectUpdate()
         {
+            /*
             this.gameObject.transform.position=BodyScript.GameObject.transform.position;
             this.gameObject.transform.rotation=BodyScript.GameObject.transform.rotation;
-            this.gameObject.transform.localScale=BodyScript.GameObject.transform.localScale;
+            this.gameObject.transform.localScale=BodyScript.GameObject.transform.localScale;*/
             Effect.velocityWorld = BodyScript.CraftScript.FlightData.SurfaceVelocity.ToVector3();
             Effect.lengthMultiplier = 5;
             Effect.entryStrength = GetEntryStrength();
@@ -64,6 +65,7 @@ public class ReEntryEffectBodyManager:MonoBehaviourBase,IFlightFixedUpdate
     
         private float GetEntryStrength()
         {
+            
             float getBodyTemp()
             {
                 float tt=0;

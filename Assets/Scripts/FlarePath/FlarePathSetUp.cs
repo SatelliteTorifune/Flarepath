@@ -31,6 +31,7 @@ namespace Assets.Scripts
             EffectObject.GetComponent<ReEntryEffectPartManager>().Effect = EffectObject.GetComponent<ReEntryEffect>();
             EffectObject.GetComponent<ReEntryEffectPartManager>().part = partScript;
             EffectObject.GetComponent<MeshFilter>().mesh = partMesh;
+            EffectObject.gameObject.transform.SetParent(partScript.GameObject.transform, false);
 
         }
 
