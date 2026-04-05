@@ -73,15 +73,7 @@ namespace Assets.Scripts
                 PartSetUp(pd.PartScript);
             }
         }
-
-        public void AddEffectToCraftBodies(ICraftScript craft)
-        {
-            foreach (var bodyData in craft.Data.Assembly.Bodies)
-            {
-                BodySetUp(bodyData.BodyScript);
-            }
-        }
-
+        
         private void OnCraftChanged(ICraftNode craft)
         {
             AddEffectToCraftParts(craft.CraftScript);

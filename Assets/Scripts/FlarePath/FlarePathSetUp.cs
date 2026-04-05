@@ -34,36 +34,7 @@ namespace Assets.Scripts
             EffectObject.gameObject.transform.SetParent(partScript.GameObject.transform, false);
 
         }
-
-        private void BodySetUp(IBodyScript bodyScript)
-        {
-            if (bodyScript?.GameObject == null)
-            {
-                return;
-            }
-
-            if (!_initializedBodyIds.Add(bodyScript.GameObject.GetInstanceID()))
-            {
-                return;
-            }
-
-            var bodyMesh = bodyScript.GameObject.GetComponentInChildren<MeshFilter>().mesh;
-            if (bodyScript.GameObject.GetComponent<Collider>()==null)
-            {
-                Log("碰撞箱为null");
-            }
-            
-            if (bodyMesh==null)
-            {
-                LogError("body is null");
-                return;
-            }
-            var EffectObject = Object.Instantiate(Mod.ResourceLoader.LoadAsset<GameObject>("Assets/Resources/EffectBody.prefab") as GameObject);
-            if (EffectObject == null) return;
-            EffectObject.GetComponent<ReEntryEffectBodyManager>().Effect = EffectObject.GetComponent<ReEntryEffect>();
-            EffectObject.GetComponent<ReEntryEffectBodyManager>().BodyScript = bodyScript;
-            EffectObject.GetComponent<MeshFilter>().mesh = bodyMesh;
-        }
+        
 
     }
 }
