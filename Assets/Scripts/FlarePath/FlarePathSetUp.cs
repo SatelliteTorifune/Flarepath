@@ -2,7 +2,6 @@ using Assets.Scripts.Craft;
 using ModApi.Craft;
 using ModApi.Craft.Parts;
 using UnityEngine;
-using UnityEngine.UIElements;
 
 namespace Assets.Scripts
 {
@@ -17,20 +16,22 @@ namespace Assets.Scripts
                 return;
             }
 
-            if (!_initializedPartIds.Add(partScript.GameObject.GetInstanceID()))
+            if (partScript.GameObject.GetComponentInChildren<ReEntryEffectPartManager>() != null)
             {
                 return;
             }
 
-            var partMesh = partScript.GameObject.GetComponentInChildren<MeshFilter>().mesh;
-            if (partMesh == null)
-            {return;}
+            var partMeshFilter = partScript.GameObject.GetComponentInChildren<MeshFilter>();
+            if (partMeshFilter == null || partMeshFilter.mesh == null)
+            {
+                return;
+            }
             
             var EffectObject = Object.Instantiate(Mod.ResourceLoader.LoadAsset<GameObject>("Assets/Resources/Effect.prefab"));
             if (EffectObject == null) return;
             EffectObject.GetComponent<ReEntryEffectPartManager>().Effect = EffectObject.GetComponent<ReEntryEffect>();
             EffectObject.GetComponent<ReEntryEffectPartManager>().part = partScript;
-            EffectObject.GetComponent<MeshFilter>().mesh = partMesh;
+            EffectObject.GetComponent<MeshFilter>().mesh = partMeshFilter.mesh;
             EffectObject.gameObject.transform.SetParent(partScript.GameObject.transform, false);
 
         }
