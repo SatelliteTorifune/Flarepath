@@ -4,7 +4,6 @@ using Assets.Scripts;
 using ModApi.GameLoop;
 using ModApi.GameLoop.Interfaces;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 /// <summary>
 /// 将速度、模型尺寸、Airstream阴影等信息传递给 AtmosphericReentry Shader。
@@ -21,15 +20,24 @@ public class ReEntryEffect : MonoBehaviourBase, IFlightFixedUpdate
     private static readonly Color LayerColor = new Color(0.4f, 0.6f, 1f, 1f);
     private static readonly Color LayerStreakColor = Color.white;
 
-    [Header("动力学参数")] public float entryStrength = 2000f;
+    public float entryStrength = 2000f;
     public Vector3 velocityWorld = Vector3.zero;
-    [Range(1, 10)] public int shadowRenderInterval = 3;
+    public int shadowRenderInterval = 3;
 
-    [Header("性能优化")] public float nearCullDistance = 20f;
+    public float nearCullDistance = 20f;
     public float nearFadeDistance = 45f;
     public float shadowDisableDistance = 35f;
-    [Tooltip("全场景每帧最多为多少个再入特效渲染 Airstream 深度（按距相机远近优先）。")]
     public int maxShadowInstances = 12;
+
+    public bool enableScreenSpaceLod = true;
+    public float lodScreenEstimateMaxWorldRadius = 220f;
+    public float screenCoverageSmall = 0.04f;
+    public float screenCoverageHeavy = 0.22f;
+    public float screenCoverageMaxOverdraw = 0.55f;
+    public float screenLodSmallDetail = 0.4f;
+    public float screenLodHeavyDetail = 0.62f;
+    public float screenCoverageBowshockOff = 0.38f;
+    public float screenCoverageShadowOff = 0.42f;
 
     private static readonly List<ReEntryEffect> ShadowBudgetInstances = new List<ReEntryEffect>(64);
     private static int s_shadowBudgetFrame = -1;
@@ -39,15 +47,17 @@ public class ReEntryEffect : MonoBehaviourBase, IFlightFixedUpdate
     private bool autoCalculateAngleOfAttack = true;
     private bool _effectActive = true;
     private float _visibilityFactor = 1f;
+    private float _screenCoverage;
+    private float _detailLod = 1f;
 
     public float fxState = 0.8f;
-    [Range(0, 10)] public float lengthMultiplier = 1f;
-    [Range(0, 2)] public float trailAlphaMultiplier = 1f;
-    [Range(0, 5)] public float opacityMultiplier = 1f;
-    [Range(0, 1)] public float wrapOpacityMultiplier = 0.5f;
-    [Range(0, 1)] public float wrapFresnelModifier = 0f;
-    [Range(0, 1)] public float streakProbability = 0.1f;
-    [Range(-1, 0)] public float streakThreshold = -0.2f;
+    public float lengthMultiplier = 1f;
+    public float trailAlphaMultiplier = 1f;
+    public float opacityMultiplier = 1f;
+    public float wrapOpacityMultiplier = 0.5f;
+    public float wrapFresnelModifier = 0f;
+    public float streakProbability = 0.1f;
+    public float streakThreshold = -0.2f;
 
     public Vector2 randomnessFactor = new Vector2(0.5f, 0.5f);
     public bool enableBowshock = true;
@@ -120,8 +130,7 @@ public class ReEntryEffect : MonoBehaviourBase, IFlightFixedUpdate
 
         if (autoCalculateAngleOfAttack && velocityWorld.sqrMagnitude > 0.01f)
         {
-            Vector3 forward = transform.forward;
-            float dot = Vector3.Dot(forward, velocityWorld.normalized);
+            float dot = Vector3.Dot(transform.forward, velocityWorld.normalized);
             dot = Mathf.Clamp(dot, -1f, 1f);
             angleOfAttack = Mathf.Acos(dot) * Mathf.Rad2Deg;
         }
@@ -138,6 +147,7 @@ public class ReEntryEffect : MonoBehaviourBase, IFlightFixedUpdate
 
         float distanceToCamera = GetDistanceToMainCamera();
         _visibilityFactor = GetVisibilityFactor(distanceToCamera);
+        ComputeScreenLod(_cachedMainCamera, distanceToCamera);
 
         if (_visibilityFactor <= 0.01f)
         {
@@ -155,7 +165,7 @@ public class ReEntryEffect : MonoBehaviourBase, IFlightFixedUpdate
         }
 
         Vector3 velocityDir = velocityWorld.normalized;
-        bool shouldRenderShadow = ShouldRenderShadow(distanceToCamera, _shadowSlotGranted);
+        bool shouldRenderShadow = ShouldRenderShadow(distanceToCamera, _shadowSlotGranted, _screenCoverage);
 
         if (shouldRenderShadow)
         {
@@ -206,22 +216,37 @@ public class ReEntryEffect : MonoBehaviourBase, IFlightFixedUpdate
 
     private void SetMat()
     {
+        float visLod = _visibilityFactor * _detailLod;
+        float streakScale = 1f;
+        if (enableScreenSpaceLod)
+        {
+            if (_screenCoverage < screenCoverageSmall)
+            {
+                streakScale = Mathf.Lerp(screenLodSmallDetail, 1f, _screenCoverage / Mathf.Max(screenCoverageSmall, 1e-4f));
+            }
+
+            streakScale *= _detailLod;
+        }
+
         _mat.SetFloat("_EntryStrength", entryStrength);
         _mat.SetVector("_Velocity", velocityWorld.normalized);
         _mat.SetFloat("_FxState", fxState);
         _mat.SetFloat("_AngleOfAttack", angleOfAttack);
         _mat.SetFloat("_LengthMultiplier", lengthMultiplier);
-        _mat.SetFloat("_TrailAlphaMultiplier", trailAlphaMultiplier * _visibilityFactor);
-        _mat.SetFloat("_OpacityMultiplier", opacityMultiplier * _visibilityFactor);
-        _mat.SetFloat("_WrapOpacityMultiplier", wrapOpacityMultiplier * _visibilityFactor);
+        _mat.SetFloat("_TrailAlphaMultiplier", trailAlphaMultiplier * visLod);
+        _mat.SetFloat("_OpacityMultiplier", opacityMultiplier * visLod);
+        _mat.SetFloat("_WrapOpacityMultiplier", wrapOpacityMultiplier * visLod);
         _mat.SetFloat("_WrapFresnelModifier", wrapFresnelModifier);
-        _mat.SetFloat("_StreakProbability", streakProbability);
+        _mat.SetFloat("_StreakProbability", streakProbability * streakScale);
         _mat.SetFloat("_StreakThreshold", streakThreshold);
         _mat.SetVector("_RandomnessFactor", randomnessFactor);
         _mat.SetVector("_ModelScale", transform.lossyScale);
         _mat.SetVector("_EnvelopeScaleFactor", new Vector4(1, 1, 1, 1));
-        _mat.SetInt("_DisableBowshock", enableBowshock && _visibilityFactor > 0.25f ? 0 : 1);
-        _mat.SetColor("_ShockwaveColor", shockwaveColor * bowshockIntensity * _visibilityFactor);
+
+        bool bowshockOk = enableBowshock && _visibilityFactor > 0.25f
+                                         && (!enableScreenSpaceLod || _screenCoverage < screenCoverageBowshockOff);
+        _mat.SetInt("_DisableBowshock", bowshockOk ? 0 : 1);
+        _mat.SetColor("_ShockwaveColor", shockwaveColor * bowshockIntensity * visLod);
         _mat.SetFloat("_BowshockForwardDistance", bowshockForwardDistance);
         _mat.SetFloat("_BowshockRadiusScale", bowshockRadiusScale);
     }
@@ -295,11 +320,60 @@ public class ReEntryEffect : MonoBehaviourBase, IFlightFixedUpdate
         }
     }
 
-    private bool ShouldRenderShadow(float distanceToCamera, bool shadowSlotGranted)
+    private bool ShouldRenderShadow(float distanceToCamera, bool shadowSlotGranted, float screenCoverage)
     {
-        return _depthOnlyShader != null
-               && distanceToCamera >= shadowDisableDistance
-               && shadowSlotGranted;
+        if (_depthOnlyShader == null
+            || distanceToCamera < shadowDisableDistance
+            || !shadowSlotGranted)
+        {
+            return false;
+        }
+
+        if (enableScreenSpaceLod && screenCoverage >= screenCoverageShadowOff)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// 用 capped 的世界半径估算相对视场高度的占比，并得出 0~1 的细节系数（占屏过小或过大都会降低）。
+    /// </summary>
+    private void ComputeScreenLod(Camera cam, float distanceToCamera)
+    {
+        if (!enableScreenSpaceLod || cam == null)
+        {
+            _screenCoverage = 0f;
+            _detailLod = 1f;
+            return;
+        }
+
+        float estimatedTrailLength = entryStrength * 0.02f;
+        estimatedTrailLength = Mathf.Max(150f, estimatedTrailLength);
+        estimatedTrailLength *= lengthMultiplier;
+
+        float sideRadius = 80f + estimatedTrailLength * 0.15f;
+        float finalRadius = Mathf.Max(sideRadius, estimatedTrailLength * 0.6f);
+        float lodRadius = Mathf.Min(finalRadius, lodScreenEstimateMaxWorldRadius);
+
+        float angular = 2f * Mathf.Atan(lodRadius / Mathf.Max(distanceToCamera, 0.01f));
+        float fovRad = cam.fieldOfView * Mathf.Deg2Rad;
+        _screenCoverage = Mathf.Clamp01(angular / Mathf.Max(fovRad, 1e-4f));
+
+        if (_screenCoverage < screenCoverageSmall)
+        {
+            _detailLod = Mathf.Lerp(screenLodSmallDetail, 1f, _screenCoverage / Mathf.Max(screenCoverageSmall, 1e-4f));
+        }
+        else if (_screenCoverage > screenCoverageHeavy)
+        {
+            float t = Mathf.InverseLerp(screenCoverageHeavy, Mathf.Max(screenCoverageMaxOverdraw, screenCoverageHeavy + 1e-4f), _screenCoverage);
+            _detailLod = Mathf.Lerp(1f, screenLodHeavyDetail, Mathf.Clamp01(t));
+        }
+        else
+        {
+            _detailLod = 1f;
+        }
     }
     
 
