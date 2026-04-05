@@ -43,10 +43,12 @@ MonoBehaviour:
   - {fileID: 2100000, guid: a0d3a2869020829428aa0c14e976eee9, type: 2}
   - {fileID: 2800000, guid: 704ab7fdf3814754d9d26ec747d1a767, type: 3}
   - {fileID: 102900000, guid: 2d61f4ece92be3a409089aada6c0c8b0, type: 3}
+  - {fileID: 7200000, guid: 0ed133707347d374c90297fa45bc51ac, type: 3}
   _prefabs:
   - {fileID: 326100850451001822, guid: 5075119586a50a548b17153827fbbce2, type: 3}
   - {fileID: 5729371531869170713, guid: 01771d85b9601594794efbd947ed887c, type: 3}
   - {fileID: 8629731326935664989, guid: dd8535f31dd2aab47b6b38d277304c64, type: 3}
+  - {fileID: 8629731326935664989, guid: 482373f4e99266443b9cc35216562d9a, type: 3}
   - {fileID: 6456826674957717894, guid: d9e59422a9fc0284389d8b868bf964a9, type: 3}
   - {fileID: 3953971736532986869, guid: 42cfbfd9d4f57d849874ef68b3336539, type: 3}
   _steamDescription: 

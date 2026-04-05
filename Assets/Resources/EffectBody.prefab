@@ -12,9 +12,9 @@ GameObject:
   - component: {fileID: 2952153493951920289}
   - component: {fileID: 3266902923672589934}
   - component: {fileID: 5505601858776063142}
-  - component: {fileID: 8573108427343034840}
+  - component: {fileID: 7415514991124870397}
   m_Layer: 0
-  m_Name: Effect
+  m_Name: EffectBody
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -99,6 +99,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   entryStrength: 3000
   velocityWorld: {x: 0, y: 0, z: 0}
+  angleOfAttack: 0
+  autoCalculateAngleOfAttack: 1
   fxState: 0
   lengthMultiplier: 2
   trailAlphaMultiplier: 2
@@ -109,15 +111,15 @@ MonoBehaviour:
   streakThreshold: -0.2
   randomnessFactor: {x: 0.5, y: 0.5}
   enableBowshock: 0
-  shockwaveColor: {r: 1, g: 0.3, b: 0, a: 1}
   bowshockIntensity: 0.8
+  shockwaveColor: {r: 1, g: 0.3, b: 0, a: 1}
   bowshockForwardDistance: 0.3
   bowshockRadiusScale: 1
   minTemp: 600
   ignitionTemp: 900
   maxTemp: 2800
   effectRenderer: {fileID: 0}
---- !u!114 &8573108427343034840
+--- !u!114 &7415514991124870397
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -126,7 +128,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 8629731326935664989}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 250faf25a8b44d04a612b74a0e6d042f, type: 3}
+  m_Script: {fileID: 11500000, guid: 295a660d967b464e9018bdf1327a1b34, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   Effect: {fileID: 5505601858776063142}

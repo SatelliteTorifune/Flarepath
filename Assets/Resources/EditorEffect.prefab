@@ -11,10 +11,9 @@ GameObject:
   - component: {fileID: 2719441547837836835}
   - component: {fileID: 2952153493951920289}
   - component: {fileID: 3266902923672589934}
-  - component: {fileID: 5505601858776063142}
-  - component: {fileID: 8573108427343034840}
+  - component: {fileID: 3503299538771284979}
   m_Layer: 0
-  m_Name: Effect
+  m_Name: EditorEffect
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -85,7 +84,7 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &5505601858776063142
+--- !u!114 &3503299538771284979
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -94,11 +93,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 8629731326935664989}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cd56497984344777881c693c2fda0dc2, type: 3}
+  m_Script: {fileID: 11500000, guid: 90b9eb164dc04342aef661aece5b198f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   entryStrength: 3000
-  velocityWorld: {x: 0, y: 0, z: 0}
+  velocityWorld: {x: 0, y: 0, z: 1}
+  angleOfAttack: 0
+  autoCalculateAngleOfAttack: 1
   fxState: 0
   lengthMultiplier: 2
   trailAlphaMultiplier: 2
@@ -109,25 +110,11 @@ MonoBehaviour:
   streakThreshold: -0.2
   randomnessFactor: {x: 0.5, y: 0.5}
   enableBowshock: 0
-  shockwaveColor: {r: 1, g: 0.3, b: 0, a: 1}
   bowshockIntensity: 0.8
+  shockwaveColor: {r: 0.2, g: 0.6, b: 1, a: 1}
   bowshockForwardDistance: 0.3
   bowshockRadiusScale: 1
   minTemp: 600
   ignitionTemp: 900
   maxTemp: 2800
   effectRenderer: {fileID: 0}
---- !u!114 &8573108427343034840
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8629731326935664989}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 250faf25a8b44d04a612b74a0e6d042f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  Effect: {fileID: 5505601858776063142}
-  ParticleSystem: {fileID: 0}

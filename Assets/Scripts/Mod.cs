@@ -25,6 +25,9 @@ namespace Assets.Scripts
     /// </summary>
     public partial class Mod : ModApi.Mods.GameMod
     {
+        private readonly HashSet<int> _initializedPartIds = new HashSet<int>();
+        private readonly HashSet<int> _initializedBodyIds = new HashSet<int>();
+
         /// <summary>
         /// Prevents a default instance of the <see cref="Mod"/> class from being created.
         /// </summary>
@@ -42,8 +45,7 @@ namespace Assets.Scripts
         public override void OnModLoaded()
         {
             base.OnModLoaded();
-            var harmony = new Harmony("com.SatelliteTorifune.BetterReentry");
-            harmony.PatchAll();
+            //new Harmony("com.SatelliteTorifune.FlarePath").PatchAll();
             Game.Instance.SceneManager.SceneLoaded += OnSceneLoaded;
             RegisterCommand();
             
@@ -57,16 +59,24 @@ namespace Assets.Scripts
                 return;
             }
 
-            AddEffectToCraft(ModApi.Common.Game.Instance.FlightScene.CraftNode.CraftScript);
+            _initializedPartIds.Clear();
+            _initializedBodyIds.Clear();
+            ModApi.Common.Game.Instance.FlightScene.CraftChanged += OnCraftChanged;
+            AddEffectToCraftParts(ModApi.Common.Game.Instance.FlightScene.CraftNode.CraftScript);
             
         }
 
-        public void AddEffectToCraft(ICraftScript craft)
+        public void AddEffectToCraftParts(ICraftScript craft)
         {
             foreach (var pd in craft.Data.Assembly.Parts)
             {
                 PartSetUp(pd.PartScript);
             }
+        }
+        
+        private void OnCraftChanged(ICraftNode craft)
+        {
+            AddEffectToCraftParts(craft.CraftScript);
         }
 
         private void RegisterCommand()
