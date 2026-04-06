@@ -29,7 +29,10 @@ public class ReEntryEffect : MonoBehaviourBase, IFlightFixedUpdate
     public float shadowDisableDistance = 35f;
     public int maxShadowInstances = 12;
 
-    public bool enableScreenSpaceLod = true;
+    /// <summary>
+    /// 根据屏幕占比削减
+    /// </summary>
+    public bool enableScreenSpaceLod = false;
     public float lodScreenEstimateMaxWorldRadius = 220f;
     public float screenCoverageSmall = 0.04f;
     public float screenCoverageHeavy = 0.22f;
@@ -50,6 +53,7 @@ public class ReEntryEffect : MonoBehaviourBase, IFlightFixedUpdate
     private float _screenCoverage;
     private float _detailLod = 1f;
 
+    //这里!
     public float fxState = 0.8f;
     public float lengthMultiplier = 1f;
     public float trailAlphaMultiplier = 1f;
@@ -145,10 +149,11 @@ public class ReEntryEffect : MonoBehaviourBase, IFlightFixedUpdate
             return;
         }
 
+        /*
         float distanceToCamera = GetDistanceToMainCamera();
         _visibilityFactor = GetVisibilityFactor(distanceToCamera);
         ComputeScreenLod(_cachedMainCamera, distanceToCamera);
-
+        */
         if (_visibilityFactor <= 0.01f)
         {
             if (effectRenderer.enabled)
@@ -165,7 +170,8 @@ public class ReEntryEffect : MonoBehaviourBase, IFlightFixedUpdate
         }
 
         Vector3 velocityDir = velocityWorld.normalized;
-        bool shouldRenderShadow = ShouldRenderShadow(distanceToCamera, _shadowSlotGranted, _screenCoverage);
+        //debug,记得关
+        bool shouldRenderShadow = true;//ShouldRenderShadow(distanceToCamera, _shadowSlotGranted, _screenCoverage);
 
         if (shouldRenderShadow)
         {

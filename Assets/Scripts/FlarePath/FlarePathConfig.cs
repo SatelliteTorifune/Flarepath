@@ -18,6 +18,7 @@ namespace FlarePath
         #region parameter
 
         //effect's config
+        public float entryStrength;
         public float fxState;
         public float lengthMultiplier;
         public float trailAlphaMultiplier;
@@ -124,6 +125,7 @@ namespace FlarePath
         {
             return new FlarePathConfig()
             {
+                entryStrength=2000f,
                 fxState = 1f,
                 lengthMultiplier = 1f,
                 trailAlphaMultiplier = 1f,
@@ -142,6 +144,7 @@ namespace FlarePath
         {
             return new FlarePathConfig
             {
+                entryStrength=this.entryStrength,
                 fxState = this.fxState,
                 lengthMultiplier = this.lengthMultiplier,
                 trailAlphaMultiplier = this.trailAlphaMultiplier,

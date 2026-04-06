@@ -1,6 +1,8 @@
+using System.Windows.Forms;
 using Assets.Packages.DevConsole;
 using Assets.Scripts.Craft.Parts.Modifiers.Fuselage;
 using Assets.Scripts.Flight.Sim;
+using FlarePath;
 using HarmonyLib;
 using ModApi.Craft;
 using ModApi.Craft.Parts;
@@ -46,6 +48,10 @@ namespace Assets.Scripts
             base.OnModLoaded();
             //new Harmony("com.SatelliteTorifune.FlarePath").PatchAll();
             Game.Instance.SceneManager.SceneLoaded += OnSceneLoaded;
+            GameObject ui=new GameObject("UI");
+            ui.AddComponent<FlarePathUserInterface>();
+            GameObject.DontDestroyOnLoad(ui);
+            ui.SetActive(true);
             RegisterCommand();
             
         }
@@ -79,6 +85,10 @@ namespace Assets.Scripts
 
         private void RegisterCommand()
         {
+            DevConsoleApi.RegisterCommand("FPUI", () =>
+            {
+                FlarePathUserInterface.Instance.OnToggleInspectorPanelState();
+            });
         }
         #region LOG
         public static void Log(object message)
