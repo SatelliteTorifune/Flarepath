@@ -85,6 +85,8 @@ half4 frag(FS_INPUT IN) : SV_Target
 	float velDot = saturate(rawDot + 0.2);
 
 	float alpha = saturate(shadow * whiteRatio * _GlowMultiplier * velDot * _FxState);
+	// Overdraw 优化：Glow 层对低 alpha 直接裁剪，避免叠加层大面积过绘
+	clip(alpha - 0.02);
 				
 	// Entry heat color
 	float3 entryHeat = GetEntryColor(_GlowColor, _HotGlowColor, (entrySpeed + _BlueMultiplier)) * shadow * velDot * lerp(0, 4, faintRatio);

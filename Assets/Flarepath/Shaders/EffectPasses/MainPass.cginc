@@ -579,6 +579,11 @@ half4 eff_gs_frag ( GS_DATA IN ) : SV_Target
     // 只渲染 layer >= 0 的几何体（负值表示 "已被裁掉"）
     clip(IN.layer >= 0 ? 1.0 : -1.0);
 
+    // Overdraw 优化：对极低贡献片元尽早裁剪
+    // 主层/Wrap 层在尾部或低 alpha 时会大量覆盖屏幕，clip 可以显著减少过绘。
+    // 注意：阈值偏保守，避免破坏外观；可再调。
+    clip(col.a - (IN.layer > 0.5 ? 0.02 : 0.01));
+
     // ---------- 基本参数 ----------
     float entrySpeed = EntryStrengthSafe() / 4000.0 - 0.08 * _FxState;
     float speedScalar = saturate(lerp(0.0, 2.5, entrySpeed));
@@ -678,6 +683,9 @@ half4 eff_gs_frag ( GS_DATA IN ) : SV_Target
             lerp(scalar0, scalar1, IN.layer) *
             _OpacityMultiplier *
             lerp(1.0, _WrapOpacityMultiplier, IN.layer);
+
+    // Overdraw 优化：在合成 alpha 后再做一次早裁剪（比后续 dither/采样便宜）
+    clip(col.a - (IN.layer > 0.5 ? 0.03 : 0.015));
 
     // ---------- HDR 处理 ----------
     float aClamped = saturate(col.a);
