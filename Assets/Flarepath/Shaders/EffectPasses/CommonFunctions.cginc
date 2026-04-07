@@ -9,6 +9,12 @@ SamplerState sampler_DitherTex;
 
 float _EntryStrength;
 
+// 限制极端运行时数值，减轻 GS 过量几何、片元颜色溢出（火萤）与性能尖峰。
+inline float EntryStrengthSafe()
+{
+	return min(_EntryStrength, 10000.0);
+}
+
 float3 _ModelScale;
 float3 _EnvelopeScaleFactor;
 float3 _Velocity;

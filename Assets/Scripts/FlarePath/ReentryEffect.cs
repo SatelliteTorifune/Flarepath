@@ -13,6 +13,9 @@ public class ReEntryEffect : MonoBehaviourBase, IFlightFixedUpdate
 {
     private static Shader _depthOnlyShader;
 
+    /// <summary>与 Shader 中 EntryStrengthSafe 上限一致，防止配置/滑条异常导致 GS 过载。</summary>
+    private const float MaxEntryStrength = 10000f;
+
     private static readonly Color PrimaryColor = new Color(1f, 0.8f, 0.4f, 1f);
     private static readonly Color SecondaryColor = new Color(0.9f, 0.2f, 0.1f, 1f);
     private static readonly Color TertiaryColor = new Color(0.6f, 0.05f, 0f, 1f);
@@ -234,16 +237,17 @@ public class ReEntryEffect : MonoBehaviourBase, IFlightFixedUpdate
             streakScale *= _detailLod;
         }
 
-        _mat.SetFloat("_EntryStrength", entryStrength);
+        // 2) 其它数值
+        _mat.SetFloat("_EntryStrength", Mathf.Clamp(entryStrength, 0f, MaxEntryStrength));
         _mat.SetVector("_Velocity", velocityWorld.normalized);
         _mat.SetFloat("_FxState", fxState);
         _mat.SetFloat("_AngleOfAttack", angleOfAttack);
-        _mat.SetFloat("_LengthMultiplier", lengthMultiplier);
-        _mat.SetFloat("_TrailAlphaMultiplier", trailAlphaMultiplier * visLod);
-        _mat.SetFloat("_OpacityMultiplier", opacityMultiplier * visLod);
-        _mat.SetFloat("_WrapOpacityMultiplier", wrapOpacityMultiplier * visLod);
+        _mat.SetFloat("_LengthMultiplier", Mathf.Clamp(lengthMultiplier, 0.1f, 6f));
+        _mat.SetFloat("_TrailAlphaMultiplier", Mathf.Clamp(trailAlphaMultiplier, 0f, 3f) * visLod);
+        _mat.SetFloat("_OpacityMultiplier", Mathf.Clamp(opacityMultiplier, 0f, 2f) * visLod);
+        _mat.SetFloat("_WrapOpacityMultiplier", Mathf.Clamp(wrapOpacityMultiplier, 0f, 2f) * visLod);
         _mat.SetFloat("_WrapFresnelModifier", wrapFresnelModifier);
-        _mat.SetFloat("_StreakProbability", streakProbability * streakScale);
+        _mat.SetFloat("_StreakProbability", Mathf.Clamp(streakProbability, 0f, 1f) * streakScale);
         _mat.SetFloat("_StreakThreshold", streakThreshold);
         _mat.SetVector("_RandomnessFactor", randomnessFactor);
         _mat.SetVector("_ModelScale", transform.lossyScale);

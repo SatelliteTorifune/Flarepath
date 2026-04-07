@@ -77,7 +77,7 @@ half4 frag(FS_INPUT IN) : SV_Target
 	float shadow = Shadow(IN.airstreamNDC, -0.003, 1);
 
 	// Acquiring the alpha
-	float entrySpeed = saturate(_EntryStrength / 4000);
+	float entrySpeed = saturate(EntryStrengthSafe() / 4000);
 	float whiteRatio = saturate(entrySpeed / 0.42);  // white when below 1680
 	float faintRatio = saturate(entrySpeed / 0.5) / 2;
 
@@ -92,5 +92,6 @@ half4 frag(FS_INPUT IN) : SV_Target
 	// Output
 	//clip(DitherTexture(alpha, IN.screenPos.xy));
 	entryHeat = lerp(entryHeat * alpha, entryHeat, _Hdr);  // perform alpha blending before the color is clamped to SDR
+	entryHeat = saturate(entryHeat);
 	return float4(entryHeat, alpha);
 }

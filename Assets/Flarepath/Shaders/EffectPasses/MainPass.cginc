@@ -135,10 +135,10 @@ GS_INPUT eff_gs_vert ( VS_INPUT IN )
 void eff_gs_geom ( triangle GS_INPUT vertex[3],
                   inout TriangleStream<GS_DATA> triStream )
 {
-    if (_EntryStrength < 50) return;
+    if (EntryStrengthSafe() < 50) return;
 
     // ---------- 基础值 ----------
-    float entrySpeed = _EntryStrength / 4000.0 - 0.08 * _FxState;
+    float entrySpeed = EntryStrengthSafe() / 4000.0 - 0.08 * _FxState;
 
     // ---------- 遮挡（Shadow） ----------
     float3 occlusion = float3(
@@ -155,7 +155,7 @@ void eff_gs_geom ( triangle GS_INPUT vertex[3],
     );
 
     // ---------- 基础长度 & 噪声 ----------
-    float baseLength = _EntryStrength * 0.0013;
+    float baseLength = EntryStrengthSafe() * 0.0013;
     // 噪声：原先对同一坐标调用两次 Noise，指令开销较大。
     // 这里改为单次采样，并通过简单缩放保持大致强度。
     float n0 = Noise(vertex[0].position.xy + vertex[0].uv, 1);
@@ -580,7 +580,7 @@ half4 eff_gs_frag ( GS_DATA IN ) : SV_Target
     clip(IN.layer >= 0 ? 1.0 : -1.0);
 
     // ---------- 基本参数 ----------
-    float entrySpeed = _EntryStrength / 4000.0 - 0.08 * _FxState;
+    float entrySpeed = EntryStrengthSafe() / 4000.0 - 0.08 * _FxState;
     float speedScalar = saturate(lerp(0.0, 2.5, entrySpeed));
 
     // ---------- 环形坐标 + 角度 ----------
@@ -598,7 +598,7 @@ half4 eff_gs_frag ( GS_DATA IN ) : SV_Target
 
     // ========== 根据 EntryStrength 和 trailPos 调整颜色 ==========
     // 头部颜色：根据 EntryStrength 控制温度颜色
-    float temperatureFactor = saturate(_EntryStrength / 8000.0); // 假设 8000 是最高强度
+    float temperatureFactor = saturate(EntryStrengthSafe() / 8000.0); // 假设 8000 是最高强度
     
     // 颜色渐变：白 => 红 => 橙 => 黄，避免使用数组与动态索引
     float3 whiteCol = float3(1.0, 1.0, 1.0);
@@ -646,7 +646,8 @@ half4 eff_gs_frag ( GS_DATA IN ) : SV_Target
         finalColor = lerp(col.rgb, tailCoolColor, coolBlend * _BlueMultiplier);
     }
     
-    col.rgb = finalColor;
+    // 与 dev 建议一致：钳制 albedo，避免 >1 与条纹色 (4,1,1) 等导致的溢出与火萤
+    col.rgb = saturate(finalColor);
     // =================================================
 
     // ---------- UV 计算 (包含滚动、缩放) ----------
@@ -691,6 +692,8 @@ half4 eff_gs_frag ( GS_DATA IN ) : SV_Target
                        0).r * trailPos.y;
     float3 cd = lerp(col.rgb, dither, dithGran);
     col.rgb = lerp(cd + (-dithGran / 4.0), col.rgb, _Hdr);
+    col.rgb = saturate(col.rgb);
+    col.a = saturate(col.a);
 
     return col;
 }
