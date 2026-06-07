@@ -1,5 +1,6 @@
 using System;
 using Assets.Scripts;
+using FlarePath;
 using ModApi.Craft.Parts;
 using ModApi.GameLoop;
 using ModApi.GameLoop.Interfaces;
@@ -54,21 +55,27 @@ public class ReEntryEffectPartManager : MonoBehaviourBase, IFlightUpdate
     private void ReEntryEffectUpdate()
     {
         Effect.velocityWorld = part.CraftScript.FlightData.SurfaceVelocity.ToVector3();
-        //Effect.entryStrength = Math.Max(Math.Min(3000, part.BodyScript.ReEntryEffectStrength * 3000f), 3);
 
-        var config = FlarePath.FlarePathUserInterface.RuntimeConfig;
-        Effect.entryStrength = config.entryStrength;
-        Effect.fxState = config.fxState;
-        Effect.lengthMultiplier = config.lengthMultiplier;
-        Effect.trailAlphaMultiplier = config.trailAlphaMultiplier;
-        Effect.opacityMultiplier = config.opacityMultiplier;
-        Effect.wrapOpacityMultiplier = config.wrapOpacityMultiplier;
-        Effect.wrapFresnelModifier = config.wrapFresnelModifier;
-        Effect.streakProbability = config.streakProbability;
-        Effect.streakThreshold = config.streakThreshold;
-        Effect.minTemp = config.minTemp;
-        Effect.ignitionTemp = config.ignitionTemp;
-        Effect.maxTemp = config.maxTemp;
+        if (FlarePathUserInterface.Instance != null && FlarePathUserInterface.Instance.UseRuntimeConfig)
+        {
+            var config = FlarePath.FlarePathUserInterface.RuntimeConfig;
+            Effect.entryStrength = config.entryStrength;
+            Effect.fxState = config.fxState;
+            Effect.lengthMultiplier = config.lengthMultiplier;
+            Effect.trailAlphaMultiplier = config.trailAlphaMultiplier;
+            Effect.opacityMultiplier = config.opacityMultiplier;
+            Effect.wrapOpacityMultiplier = config.wrapOpacityMultiplier;
+            Effect.wrapFresnelModifier = config.wrapFresnelModifier;
+            Effect.streakProbability = config.streakProbability;
+            Effect.streakThreshold = config.streakThreshold;
+            Effect.minTemp = config.minTemp;
+            Effect.ignitionTemp = config.ignitionTemp;
+            Effect.maxTemp = config.maxTemp;
+        }
+        else
+        {
+            Effect.entryStrength = Math.Max(Math.Min(3000, part.BodyScript.ReEntryEffectStrength * 3000f), 3);
+        }
     }
 
     private void ParticleEffectUpdate()

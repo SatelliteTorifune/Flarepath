@@ -13,9 +13,12 @@ namespace FlarePath
 
         private IInspectorPanel inspectorPanel;
         private InspectorModel inspectorModel;
+        private bool useRuntimeConfig;
 
         private static FlarePathConfig runtimeConfig = FlarePathConfig.CreateDefault();
         public static FlarePathConfig RuntimeConfig => runtimeConfig;
+
+        public bool UseRuntimeConfig => useRuntimeConfig;
 
         void Awake()
         {
@@ -50,6 +53,7 @@ namespace FlarePath
                 "<color=yellow>Reentry Effect Runtime Tuning</color>");
 
             AddSlider("entryStrength", () => runtimeConfig.entryStrength, value => runtimeConfig.entryStrength = value, 0f, 5000f);
+            inspectorModel.Add(new ToggleModel("Use Runtime Config", () => useRuntimeConfig, value => useRuntimeConfig = value));
             AddSlider("Fx State", () => runtimeConfig.fxState, value => runtimeConfig.fxState = value, 0f, 2f);
             AddSlider("Length Multiplier", () => runtimeConfig.lengthMultiplier, value => runtimeConfig.lengthMultiplier = value, 0.1f, 10f);
             AddSlider("Trail Alpha", () => runtimeConfig.trailAlphaMultiplier, value => runtimeConfig.trailAlphaMultiplier = value, 0f, 5f);
@@ -75,6 +79,8 @@ namespace FlarePath
         {
             inspectorModel.Add(new SliderModel(label, getter, setter, min, max, false, true));
         }
+
+        
         
 
         public void FlightFixedUpdate(in FlightFrameData flightFrameData)
