@@ -19,6 +19,7 @@ namespace FlarePath
 
         //effect's config
         public float entryStrength;
+        public int shaderMode;   // 0=Game, 1=Plasma, 2=Streaks, 3=Dramatic
         public float fxState;
         public float lengthMultiplier;
         public float trailAlphaMultiplier;
@@ -126,17 +127,18 @@ namespace FlarePath
             return new FlarePathConfig()
             {
                 entryStrength=2000f,
+                shaderMode = 1,
                 fxState = 1f,
-                lengthMultiplier = 1f,
+                lengthMultiplier = 1.5f,
                 trailAlphaMultiplier = 1f,
-                opacityMultiplier = 1f,
+                opacityMultiplier = 1.5f,
                 wrapOpacityMultiplier = 1f,
                 wrapFresnelModifier = 1f,
-                streakProbability = 1f,
-                streakThreshold = 1f,
-                minTemp = 1f,
-                ignitionTemp = 1f,
-                maxTemp = 1f
+                streakProbability = 0.7f,
+                streakThreshold = 0.1f,
+                minTemp = 800f,
+                ignitionTemp = 2500f,
+                maxTemp = 5000f
             };
         }
 
@@ -145,6 +147,7 @@ namespace FlarePath
             return new FlarePathConfig
             {
                 entryStrength=this.entryStrength,
+                shaderMode=this.shaderMode,
                 fxState = this.fxState,
                 lengthMultiplier = this.lengthMultiplier,
                 trailAlphaMultiplier = this.trailAlphaMultiplier,
@@ -163,6 +166,8 @@ namespace FlarePath
         {
             return new FlarePathConfig
             {
+                entryStrength=source.entryStrength,
+                shaderMode=source.shaderMode,
                 fxState = source.fxState,
                 lengthMultiplier = source.lengthMultiplier,
                 trailAlphaMultiplier = source.trailAlphaMultiplier,

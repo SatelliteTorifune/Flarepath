@@ -54,7 +54,13 @@ namespace FlarePath
 
             AddSlider("entryStrength", () => runtimeConfig.entryStrength, value => runtimeConfig.entryStrength = value, 0f, 5000f);
             inspectorModel.Add(new ToggleModel("Use Runtime Config", () => useRuntimeConfig, value => useRuntimeConfig = value));
-            AddSlider("Fx State", () => runtimeConfig.fxState, value => runtimeConfig.fxState = value, 0f, 2f);
+
+            // Mode: 0=Game, 1=Plasma, 2=Plasma+Streaks, 3=Dramatic
+            inspectorModel.Add(new SliderModel(
+                "Mode (0=Game 1=Plasma 2=Streaks 3=Drama)", () => runtimeConfig.shaderMode,
+                value => runtimeConfig.shaderMode = Mathf.RoundToInt(Mathf.Clamp(value, 0f, 3f)),
+                0f, 3f, false, true));
+
             AddSlider("Length Multiplier", () => runtimeConfig.lengthMultiplier, value => runtimeConfig.lengthMultiplier = value, 0.1f, 10f);
             AddSlider("Trail Alpha", () => runtimeConfig.trailAlphaMultiplier, value => runtimeConfig.trailAlphaMultiplier = value, 0f, 5f);
             AddSlider("Opacity", () => runtimeConfig.opacityMultiplier, value => runtimeConfig.opacityMultiplier = value, 0f, 5f);
